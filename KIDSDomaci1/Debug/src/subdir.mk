@@ -4,13 +4,13 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../src/Vezba3.c 
+../src/KIDSDomaci1.c 
 
 OBJS += \
-./src/Vezba3.o 
+./src/KIDSDomaci1.o 
 
 C_DEPS += \
-./src/Vezba3.d 
+./src/KIDSDomaci1.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
