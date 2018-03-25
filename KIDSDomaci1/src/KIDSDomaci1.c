@@ -13,16 +13,10 @@ struct node {
 
 struct node* tail = (struct node *) NULL;
 
-int balans = 0;
-
 int lock_n_threads_with_timeout(int id, int* local, double timeout) {
 	double startTime = lrk_get_time();
-	lrk_get_and_increment(&balans);
-//	puts("LOCK");
-//	printf("Locking id: %d local: %d balans: %d\n", id, local[0], balans);
-//	lrk_sleep(2000);
 
-// create node
+	// create node
 	struct node* myNode = (struct node*) malloc(sizeof(struct node));
 	myNode->locked = TRUE;
 	myNode->next = NULL;
@@ -37,14 +31,8 @@ int lock_n_threads_with_timeout(int id, int* local, double timeout) {
 		previousNode->next = myNode;
 
 		// spin until previous node sets my flag
-		int waitingTimes = 0;
 		while (myNode->locked) {
-			// TODO: backoff?
 			lrk_sleep(1);
-			waitingTimes++;
-			if (waitingTimes > 100) {
-				puts("locked waiting...");
-			}
 
 			if (lrk_get_time() - startTime > timeout) {
 				int timeoutSuccess = lrk_compare_and_set(&(myNode->locked),
@@ -75,11 +63,6 @@ int unlockNode(struct node* node) {
 }
 
 void unlock_n_threads_with_timeout(int id, int* local) {
-	lrk_get_and_decrement(&balans);
-//	puts("UNLOCK");
-//	printf("unlock %d local: %d balans %d\n", id, local[0], balans);
-//	lrk_sleep(1000);
-
 	struct node* myNode = (struct node *) local[0];
 
 	struct node* currentNode = myNode;
@@ -107,7 +90,6 @@ void unlock_n_threads_with_timeout(int id, int* local) {
 				// waiting for new node to become my next
 				while (currentNode->next == NULL) {
 					lrk_sleep(1);
-					puts("last waiting...");
 				}
 				// now it will be done in next loop
 			} else {
@@ -122,6 +104,6 @@ void unlock_n_threads_with_timeout(int id, int* local) {
 
 int main(void) {
 	puts("test timeout");
-	start_timeout_mutex_n_threads_test(0.099999);
+	start_timeout_mutex_n_threads_test(0.02);
 	return EXIT_SUCCESS;
 }
