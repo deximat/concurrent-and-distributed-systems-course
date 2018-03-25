@@ -71,6 +71,7 @@ int unlockNode(struct node* node) {
 		return lrk_compare_and_set(&(node->locked), TRUE,
 		FALSE);
 	}
+	return 0;
 }
 
 void unlock_n_threads_with_timeout(int id, int* local) {
@@ -121,7 +122,6 @@ void unlock_n_threads_with_timeout(int id, int* local) {
 
 int main(void) {
 	puts("test timeout");
-	start_timeout_mutex_n_threads_test(0.2);
-
+	start_timeout_mutex_n_threads_test(0.099999);
 	return EXIT_SUCCESS;
 }
