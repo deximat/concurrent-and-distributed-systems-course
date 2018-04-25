@@ -11,6 +11,11 @@ import com.codlex.raf.kids.domaci2.pipeline.data.PipelineCollection;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineData;
 import com.codlex.raf.kids.domaci2.pipeline.node.input.BaseInput;
 import com.codlex.raf.kids.domaci2.pipeline.node.worker.Worker;
+import com.codlex.raf.kids.domaci2.view.GUI;
+
+import javafx.scene.Node;
+import javafx.scene.layout.VBox;
+import lombok.core.runtimeDependencies.CreateLombokRuntimeApp;
 
 public class DatabaseInput extends BaseInput {
 
@@ -23,6 +28,7 @@ public class DatabaseInput extends BaseInput {
 
 	public DatabaseInput(Worker worker) {
 		super(worker);
+		worker.addInput(this);
 
 		// default params
 		setParam(Params.DATABASE_URL, "jdbc:postgresql://localhost/wizardworld");
@@ -69,12 +75,13 @@ public class DatabaseInput extends BaseInput {
 	}
 
 	protected PipelineCollection processBatch(PipelineCollection toProcess) {
-		PipelineCollection processedColleciton = PipelineCollection.create();
-		for (PipelineData data : toProcess) {
-			// do some heavy lifting on data
-			processedColleciton.put(PipelineData.ofInt(data.getIntValue("rating")));
-		}
-		return processedColleciton;
+//		PipelineCollection processedColleciton = PipelineCollection.create();
+//		for (PipelineData data : toProcess) {
+//			// do some heavy lifting on data
+//			// processedColleciton.put(PipelineData.ofInt(data.getIntValue("rating")));
+//		}
+//		return processedColleciton;
+		return toProcess;
 	}
 
 	private PipelineData buildPipelineData(ResultSet rs) throws SQLException {
@@ -86,6 +93,15 @@ public class DatabaseInput extends BaseInput {
 		}
 
 		return data;
+	}
+
+	@Override
+	public Node produceView() {
+		VBox vbox = (VBox) super.produceView();
+		vbox.getChildren().add(GUI.createButton("Trigger", () -> {
+			triggerRead();
+		}));
+		return vbox;
 	}
 
 }

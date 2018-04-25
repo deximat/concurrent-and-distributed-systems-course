@@ -10,9 +10,9 @@ import lombok.ToString;
 
 @ToString
 public class BasePipelineCollection implements PipelineCollection {
-	
+
 	private final List<PipelineData> backingCollection = new ArrayList<>();
-	
+
 	@Override
 	public Iterator<PipelineData> iterator() {
 		return this.backingCollection.iterator();
@@ -51,6 +51,11 @@ public class BasePipelineCollection implements PipelineCollection {
 	@Override
 	public boolean isEmpty() {
 		return this.backingCollection.isEmpty();
+	}
+
+	@Override
+	public void addAll(List<PipelineData> unmerged) {
+		this.backingCollection.addAll(unmerged);
 	}
 
 }
