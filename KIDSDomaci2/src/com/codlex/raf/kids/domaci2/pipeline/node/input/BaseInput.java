@@ -10,11 +10,12 @@ public abstract class BaseInput extends BaseNode implements Input {
 
 	@Getter
 	private final Worker worker;
-	
+
 	public BaseInput(final Worker worker) {
 		this.worker = worker;
+		this.worker.addInput(this);
 	}
-	
+
 	@Override
 	protected void onFinish(PipelineCollection toProcess) {
 		this.worker.give(toProcess);

@@ -28,8 +28,6 @@ public class DatabaseInput extends BaseInput {
 
 	public DatabaseInput(Worker worker) {
 		super(worker);
-		worker.addInput(this);
-
 		// default params
 		setParam(Params.DATABASE_URL, "jdbc:postgresql://localhost/wizardworld");
 		setParam(Params.DATABASE_USERNAME, "babe");

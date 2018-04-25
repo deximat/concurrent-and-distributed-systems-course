@@ -6,6 +6,12 @@ import com.codlex.raf.kids.domaci2.pipeline.data.PipelineCollection;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineData;
 import com.codlex.raf.kids.domaci2.pipeline.node.worker.BaseWorker;
 
+
+/**
+ * Average - pronalazi prosečnu vrednost za neki ključ iz kolekcije koja mu je prosleđena i konstruiše jedan
+ * PipelineData objekat koji sadrži tu vrednost, koji onda prosleđuje dalje. Podela posla kod niti ima iste
+ * zahteve kao kod Range Splitter.
+ */
 public class AverageWorker extends BaseWorker {
 
 	private static final String FIELD_TO_AVERAGE = "field to average";
