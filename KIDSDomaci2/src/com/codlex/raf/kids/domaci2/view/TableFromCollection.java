@@ -30,7 +30,7 @@ public class TableFromCollection {
 
 		TableView<PipelineData> table = new TableView<PipelineData>(dataModel);
 		initColumns(table, collection.first().keys());
-        Scene scene  = new Scene(table, 1024, 500);
+        Scene scene = new Scene(table, 1024, 500);
 		return table;
 	}
 

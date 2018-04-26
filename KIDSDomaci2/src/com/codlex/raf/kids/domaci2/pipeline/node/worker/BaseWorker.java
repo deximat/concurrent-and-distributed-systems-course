@@ -33,7 +33,11 @@ public abstract class BaseWorker extends BaseNode implements Worker {
 
 	@Override
 	public final void give(final PipelineCollection toProcess) {
-		processAll(toProcess);
+		try {
+			processAll(toProcess);
+		} catch (Exception e) {
+			throw new Error("Exception happened in worker: {}", e);
+		}
 	}
 
 	protected final void onFinish(final PipelineCollection finalResult) {
@@ -45,6 +49,8 @@ public abstract class BaseWorker extends BaseNode implements Worker {
 		if (this.next != null) {
 			this.next.give(finalResult);
 		}
+
+		super.onFinish(finalResult);
 	}
 
 

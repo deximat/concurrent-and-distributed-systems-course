@@ -9,6 +9,7 @@ import java.sql.Statement;
 
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineCollection;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineData;
+import com.codlex.raf.kids.domaci2.pipeline.node.base.NodeState;
 import com.codlex.raf.kids.domaci2.pipeline.node.input.BaseInput;
 import com.codlex.raf.kids.domaci2.pipeline.node.worker.Worker;
 import com.codlex.raf.kids.domaci2.view.GUI;
@@ -36,7 +37,12 @@ public class DatabaseInput extends BaseInput {
 	}
 
 	public void triggerRead() {
-		execute(() -> processAll(doRead()));
+		execute(() -> {
+			PipelineCollection result = doRead();
+			if (result != null) {
+				processAll(result);
+			}
+		});
 	}
 
 	private PipelineCollection doRead() {
@@ -59,12 +65,14 @@ public class DatabaseInput extends BaseInput {
 
 		} catch (Throwable e) {
 			e.printStackTrace();
+			setState(NodeState.Stopped);
 		} finally {
 			if (connection != null) {
 				try {
 					connection.close();
 				} catch (SQLException e) {
 					e.printStackTrace();
+					setState(NodeState.Stopped);
 				}
 			}
 		}

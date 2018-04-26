@@ -12,6 +12,7 @@ import com.codlex.raf.kids.domaci2.pipeline.PipelineID;
 import com.codlex.raf.kids.domaci2.pipeline.data.CollectionCollector;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineCollection;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineData;
+import com.codlex.raf.kids.domaci2.pipeline.node.base.NodeState;
 import com.codlex.raf.kids.domaci2.pipeline.node.input.BaseInput;
 import com.codlex.raf.kids.domaci2.pipeline.node.worker.Worker;
 import com.codlex.raf.kids.domaci2.view.GUI;
@@ -91,6 +92,13 @@ public class SocketInput extends BaseInput {
 	}
 
 	private void processRequest(final Socket socket) {
+		setState(NodeState.Active);
+		try {
+			Thread.sleep(300);
+		} catch (InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
 		Scanner scanner = null;
 		try {
 			scanner = new Scanner(socket.getInputStream());
@@ -105,13 +113,13 @@ public class SocketInput extends BaseInput {
 			}
 
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
 			if (scanner != null) {
 				scanner.close();
 			}
 		}
+		setState(NodeState.Waiting);
 	}
 
 	@Override
@@ -125,9 +133,6 @@ public class SocketInput extends BaseInput {
 
 
 	private void test() {
-		// echo '{"id":1, "method":"object.deleteAll", "params":["myParam"]}' | nc localhost 3994
-
-
 		 // echo '{ id : 1, partsCount : 2, list : [ { rating: 1, b : 3}, {rating : 3}] }' | nc localhost 8080
 	}
 

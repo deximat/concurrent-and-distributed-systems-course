@@ -9,14 +9,21 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.codlex.raf.kids.domaci2.pipeline.PipelineID;
 import com.codlex.raf.kids.domaci2.pipeline.data.CollectionBatcher;
 import com.codlex.raf.kids.domaci2.pipeline.data.CollectionCollector;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineCollection;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineData;
+import com.codlex.raf.kids.domaci2.pipeline.node.worker.Worker;
+import com.codlex.raf.kids.domaci2.tests.basic.nodes.output.GUIOutput;
 import com.codlex.raf.kids.domaci2.view.GUI;
+import com.codlex.raf.kids.domaci2.view.PipelineGUI;
 
+import javafx.application.Platform;
+import javafx.beans.property.StringProperty;
+import javafx.beans.property.StringPropertyBase;
 import javafx.geometry.Pos;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
@@ -57,6 +64,7 @@ public abstract class BaseNode implements Node {
 	private final int ID;
 
 	private final ThreadPoolExecutor threadPool;
+	private final AtomicReference<NodeState> state = new AtomicReference<>(NodeState.Waiting);
 
 	public BaseNode() {
 		final int defaultThreadsCount = 10;
@@ -92,27 +100,60 @@ public abstract class BaseNode implements Node {
 	}
 
 	protected final void processAll(final PipelineCollection toProcess) {
-		final CollectionBatcher batcher = new CollectionBatcher(toProcess, getBatchSize(toProcess.size()));
-		for (final PipelineCollection batch : batcher.getBatches()) {
-			this.threadPool.submit(() -> {
-				try {
-					final PipelineCollection result = processBatch(batch);
-					CollectionCollector collector = getCollector(batch.getID(), batch.getPartsCount());
-					final boolean shouldMerge = collector.submitResultAndShouldMerge(result);
-					if (shouldMerge) {
+		setState(NodeState.Active);
+		try {
+			final CollectionBatcher batcher = new CollectionBatcher(toProcess, getBatchSize(toProcess.size()));
+			for (final PipelineCollection batch : batcher.getBatches()) {
+				this.threadPool.submit(() -> {
+					try {
+						// if (true)
+						// if (this instanceof Worker)
+						// throw new RuntimeException();
+						final PipelineCollection result = processBatch(batch);
+						Thread.sleep(300);
+						CollectionCollector collector = getCollector(batch.getID(), batch.getPartsCount());
+						final boolean shouldMerge = collector.submitResultAndShouldMerge(result);
+						if (shouldMerge) {
 
-						final PipelineCollection mergedResults = mergeBatches(collector.getAllResults());
-						if (mergedResults != null) {
-							onFinish(mergedResults);
+							final PipelineCollection mergedResults = mergeBatches(collector.getAllResults());
+							if (mergedResults != null) {
+								onFinish(mergedResults);
+							}
+
+							removeCollector(batch.getID());
 						}
-
-						removeCollector(batch.getID());
+					} catch (Throwable e) {
+						if (this instanceof Worker) {
+							System.out.println("Exception happened in worker:");
+							e.printStackTrace();
+							System.exit(-1);
+						} else {
+							System.out.println("Exception happened in in/out node.");
+							setState(NodeState.Stopped);
+							e.printStackTrace();
+						}
 					}
-				} catch (Throwable e) {
-					e.printStackTrace();
-				}
-			});
+				});
+			}
+		} catch (Throwable e) {
+			if (this instanceof Worker) {
+				System.out.println("Exception happened in worker:");
+				e.printStackTrace();
+				System.exit(-1);
+			} else {
+				System.out.println("Exception happened in in/out node.");
+				setState(NodeState.Stopped);
+				e.printStackTrace();
+			}
 		}
+
+	}
+
+	protected void setState(NodeState value) {
+		this.state.set(value);
+		Platform.runLater(() -> {
+			PipelineGUI.redrawEverything();
+		});
 	}
 
 	protected PipelineCollection processBatch(final PipelineCollection toProcess) {
@@ -131,7 +172,9 @@ public abstract class BaseNode implements Node {
 		return result;
 	}
 
-	protected abstract void onFinish(final PipelineCollection toProcess);
+	protected void onFinish(final PipelineCollection toProcess) {
+		setState(NodeState.Waiting);
+	}
 
 	protected int getBatchSize(final int total) {
 		return Math.max(1, total / this.threadPool.getCorePoolSize());
@@ -141,21 +184,15 @@ public abstract class BaseNode implements Node {
 		this.threadPool.execute(command);
 	}
 
-
 	@SuppressWarnings("unchecked")
 	protected <T> T getParam(String paramName) {
 		return (T) this.params.get(paramName);
 	}
 
-
-
 	protected VBox produceParamSetupView() {
 		VBox vbox = new VBox();
-		String cssLayout = "-fx-border-color: green;\n" +
-                "-fx-border-insets: 5;\n" +
-                "-fx-border-width: 3;\n" +
-                "-fx-border-style: dashed;\n" +
-                "-fx-padding: 20; \n";
+		String cssLayout = "-fx-border-color: green;\n" + "-fx-border-insets: 5;\n" + "-fx-border-width: 3;\n"
+				+ "-fx-border-style: dashed;\n" + "-fx-padding: 20; \n";
 		vbox.setStyle(cssLayout);
 
 		vbox.setAlignment(Pos.TOP_CENTER);
@@ -163,7 +200,7 @@ public abstract class BaseNode implements Node {
 		vbox.setMinHeight(200);
 
 		Text title = new Text(getClass().getSimpleName());
-		title.setFont(Font.font ("Verdana", 25));
+		title.setFont(Font.font("Verdana", 25));
 
 		vbox.getChildren().add(title);
 		for (Entry<String, Object> param : this.params.entrySet()) {
@@ -176,6 +213,8 @@ public abstract class BaseNode implements Node {
 			}));
 			vbox.getChildren().add(hbox);
 		}
+
+		vbox.getChildren().add(new Text("State:" + this.state.get()));
 
 		return vbox;
 	}

@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineCollection;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineData;
 import com.codlex.raf.kids.domaci2.pipeline.node.base.BaseNode;
+import com.codlex.raf.kids.domaci2.pipeline.node.base.NodeState;
 import com.codlex.raf.kids.domaci2.pipeline.node.output.Output;
 import com.codlex.raf.kids.domaci2.pipeline.node.worker.BaseWorker;
 import com.codlex.raf.kids.domaci2.view.GUI;
@@ -50,6 +51,13 @@ public class GUIOutput extends BaseNode implements Output {
 
 	@Override
 	public void accept(PipelineCollection collection) {
+		setState(NodeState.Active);
+		try {
+			Thread.sleep(300);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		execute(() -> {
 			Platform.runLater(() -> {
 				for (PipelineData data : collection) {
@@ -58,25 +66,16 @@ public class GUIOutput extends BaseNode implements Output {
 					//}
 
 					GUIOutput.this.data.add(data);
+					onFinish(collection);
 				}
 			});
 		});
 	}
 
 	@Override
-	protected PipelineCollection processBatch(PipelineCollection toProcess) {
-
-		return super.processBatch(toProcess);
-	}
-
-	@Override
-	protected void onFinish(PipelineCollection toProcess) {
-
-	}
-
-	@Override
 	public Node produceView() {
-		VBox vbox = new VBox();
+		VBox vbox = (VBox) super.produceView();
+
 		vbox.getChildren().add(this.table);
 		vbox.getChildren().add(GUI.createButton("Clear", () -> {
 			Platform.runLater(() -> {

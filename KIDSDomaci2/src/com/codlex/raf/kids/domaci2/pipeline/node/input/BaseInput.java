@@ -19,5 +19,6 @@ public abstract class BaseInput extends BaseNode implements Input {
 	@Override
 	protected void onFinish(PipelineCollection toProcess) {
 		this.worker.give(toProcess);
+		super.onFinish(toProcess);
 	}
 }
