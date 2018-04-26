@@ -21,7 +21,7 @@ public class SumWorker extends BaseWorker {
 		for (PipelineData data : toProcess) {
 			sum += data.getIntValue(getParam(FIELD_TO_SUM));
 		}
-		return PipelineCollection.of(PipelineData.ofInt(sum));
+		return PipelineCollection.of(toProcess.getID(), PipelineData.ofInt(sum));
 	}
 
 	@Override
@@ -33,7 +33,7 @@ public class SumWorker extends BaseWorker {
 			totalSum += batchResult;
 		}
 
-		return PipelineCollection.of(PipelineData.ofInt(totalSum));
+		return PipelineCollection.of(generateFullId(), PipelineData.ofInt(totalSum));
 	}
 
 

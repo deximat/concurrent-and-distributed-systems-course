@@ -50,7 +50,7 @@ public class DatabaseInput extends BaseInput {
 			String query = getParam(Params.DATABASE_QUERY);
 			ResultSet rs = stmt.executeQuery(query);
 
-			final PipelineCollection rows = PipelineCollection.create();
+			final PipelineCollection rows = PipelineCollection.create(generateFullId());
 			while (rs.next()) {
 				rows.put(buildPipelineData(rs));
 			}

@@ -6,21 +6,30 @@ import java.util.List;
 
 import com.codlex.raf.kids.domaci2.pipeline.PipelineID;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 @ToString
 public class BasePipelineCollection implements PipelineCollection {
 
+	@Getter
+	@Setter
+	private PipelineID ID;
+
+	@Getter
+	@Setter
+	private int partsCount;
+
 	private final List<PipelineData> backingCollection = new ArrayList<>();
+
+	public BasePipelineCollection(PipelineID id) {
+		this.ID = id;
+	}
 
 	@Override
 	public Iterator<PipelineData> iterator() {
 		return this.backingCollection.iterator();
-	}
-
-	@Override
-	public PipelineID getID() {
-		return null;
 	}
 
 	@Override
@@ -57,5 +66,6 @@ public class BasePipelineCollection implements PipelineCollection {
 	public void addAll(List<PipelineData> unmerged) {
 		this.backingCollection.addAll(unmerged);
 	}
+
 
 }

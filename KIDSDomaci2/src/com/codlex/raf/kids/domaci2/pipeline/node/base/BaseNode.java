@@ -10,7 +10,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.codlex.raf.kids.domaci2.pipeline.PipelineID;
 import com.codlex.raf.kids.domaci2.pipeline.data.CollectionBatcher;
+import com.codlex.raf.kids.domaci2.pipeline.data.CollectionCollector;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineCollection;
 import com.codlex.raf.kids.domaci2.pipeline.data.PipelineData;
 import com.codlex.raf.kids.domaci2.view.GUI;
@@ -30,8 +32,11 @@ public abstract class BaseNode implements Node {
 	}
 
 	private final Map<String, Object> params = new ConcurrentHashMap<>();
+	private final Map<PipelineID, CollectionCollector> collectors = new ConcurrentHashMap<>();
 
 	private static final AtomicInteger ID_GENERATOR = new AtomicInteger();
+
+	private final AtomicInteger DATA_ID_GENERATOR = new AtomicInteger();
 
 	@Override
 	public List<String> getParams() {
@@ -64,9 +69,26 @@ public abstract class BaseNode implements Node {
 		return ID_GENERATOR.incrementAndGet();
 	}
 
+	protected final PipelineID generateFullId() {
+		return generateId(DATA_ID_GENERATOR.incrementAndGet());
+	}
+
+	protected final PipelineID generateId(int dataId) {
+		return PipelineID.of(getID(), dataId);
+	}
+
 	protected final ThreadPoolExecutor buildPool(int threads) {
 		return new ThreadPoolExecutor(threads, threads, 100, TimeUnit.MILLISECONDS,
 				new LinkedBlockingQueue<Runnable>());
+	}
+
+	protected void removeCollector(PipelineID id) {
+		this.collectors.remove(id);
+	}
+
+	protected CollectionCollector getCollector(PipelineID id, int size) {
+		this.collectors.putIfAbsent(id, new CollectionCollector(id, size));
+		return this.collectors.get(id);
 	}
 
 	protected final void processAll(final PipelineCollection toProcess) {
@@ -75,12 +97,16 @@ public abstract class BaseNode implements Node {
 			this.threadPool.submit(() -> {
 				try {
 					final PipelineCollection result = processBatch(batch);
-					final boolean shouldMerge = batcher.submitResultAndShouldMerge(result);
+					CollectionCollector collector = getCollector(batch.getID(), batch.getPartsCount());
+					final boolean shouldMerge = collector.submitResultAndShouldMerge(result);
 					if (shouldMerge) {
-						final PipelineCollection mergedResults = mergeBatches(batcher.getAllResults());
+
+						final PipelineCollection mergedResults = mergeBatches(collector.getAllResults());
 						if (mergedResults != null) {
 							onFinish(mergedResults);
 						}
+
+						removeCollector(batch.getID());
 					}
 				} catch (Throwable e) {
 					e.printStackTrace();
@@ -94,7 +120,7 @@ public abstract class BaseNode implements Node {
 	}
 
 	protected PipelineCollection mergeBatches(final List<PipelineCollection> toProcess) {
-		final PipelineCollection result = PipelineCollection.create();
+		final PipelineCollection result = PipelineCollection.create(toProcess.get(0).getID());
 
 		for (PipelineCollection batch : toProcess) {
 			for (PipelineData data : batch) {

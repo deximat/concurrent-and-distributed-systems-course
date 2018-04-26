@@ -35,7 +35,7 @@ public class AverageWorker extends BaseWorker {
 		result.setValue(SUM_KEY, sum);
 		result.setValue(COUNT_KEY, toProcess.size());
 
-		return PipelineCollection.of(result);
+		return PipelineCollection.of(toProcess.getID(), result);
 	}
 
 	@Override
@@ -48,7 +48,7 @@ public class AverageWorker extends BaseWorker {
 			count += batch.first().getIntValue(COUNT_KEY);
 		}
 
- 		return PipelineCollection.of(PipelineData.ofDouble(sum / count));
+ 		return PipelineCollection.of(generateFullId(), PipelineData.ofDouble(sum / count));
 	}
 
 }

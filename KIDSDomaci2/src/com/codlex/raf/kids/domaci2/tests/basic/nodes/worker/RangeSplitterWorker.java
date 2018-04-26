@@ -66,14 +66,15 @@ public class RangeSplitterWorker extends BaseWorker {
 			}
 			category.add(data);
 		}
-		return PipelineCollection.of(result);
+		return PipelineCollection.of(toProcess.getID(), result);
 	}
 
 	@Override
 	protected PipelineCollection mergeBatches(List<PipelineCollection> toProcess) {
+
 		for (Range<Integer> range : getRanges()) {
 
-			final PipelineCollection merged = PipelineCollection.create();
+			final PipelineCollection merged = PipelineCollection.create(generateFullId());
 
 			for (PipelineCollection batch : toProcess) {
 				List<PipelineData> unmerged = batch.first().getValue(range.toString());
@@ -85,6 +86,7 @@ public class RangeSplitterWorker extends BaseWorker {
 			onFinish(merged);
 		}
 
+		// we already returned mulltiple collections
 		return null;
 	}
 }
