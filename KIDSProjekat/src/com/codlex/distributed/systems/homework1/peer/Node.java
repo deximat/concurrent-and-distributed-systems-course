@@ -3,6 +3,7 @@ package com.codlex.distributed.systems.homework1.peer;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
@@ -55,6 +56,8 @@ public class Node {
 	@Getter
 	private final DHT dht = new DHT(this);
 
+	private Region region;
+
 	public Node(int port) {
 //		try {
 			this.info = new NodeInfo(new KademliaId(), "localhost", port);
@@ -67,7 +70,7 @@ public class Node {
 		this.client = createClient();
 		this.routingTable = new RoutingTable(this.info);
 
-		new NodeGui(this);
+		// new NodeGui(this);
 
 	}
 
@@ -188,4 +191,21 @@ public class Node {
 	public String getCurrentTask() {
 		return this.task.get();
 	}
+
+	public void setRegion(Region region) {
+		this.region = region;
+	}
+
+	public void search(String text, Consumer<List<String>> callback) {
+		throw new RuntimeException("Not implemented yet.");
+	}
+
+	public void uploadVideo(String name, Consumer<Object> callback) {
+		// TODO: implement video object
+		DELAYER.schedule(() -> {
+			callback.accept("DONE");
+		}, 1000, TimeUnit.MILLISECONDS);
+	}
+
+	private static final ScheduledExecutorService DELAYER = Executors.newSingleThreadScheduledExecutor();
 }
