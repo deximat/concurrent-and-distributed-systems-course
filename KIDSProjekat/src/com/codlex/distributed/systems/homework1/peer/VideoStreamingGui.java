@@ -54,6 +54,7 @@ public class VideoStreamingGui {
 	}
 
 	private void redraw() {
+
 		Platform.runLater(() -> {
 			if (this.stage == null) {
 				this.stage = new Stage();
