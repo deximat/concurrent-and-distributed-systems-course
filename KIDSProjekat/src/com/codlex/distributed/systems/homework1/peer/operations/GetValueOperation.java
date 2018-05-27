@@ -4,8 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -15,28 +14,34 @@ import com.codlex.distributed.systems.homework1.peer.Node;
 import com.codlex.distributed.systems.homework1.peer.NodeInfo;
 import com.codlex.distributed.systems.homework1.peer.Settings;
 import com.codlex.distributed.systems.homework1.peer.messages.FindNodesRequest;
-import com.codlex.distributed.systems.homework1.peer.messages.FindNodesResponse;
+import com.codlex.distributed.systems.homework1.peer.messages.GetValueRequest;
+import com.codlex.distributed.systems.homework1.peer.messages.GetValueResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.Messages;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class NodeLookup {
+public class GetValueOperation {
 
 	// TODO: handle failed
 	private final Node localNode;
+
 	// TODO: handle concurrency well.
 	private final Set<NodeInfo> nodes = new HashSet<>();
 	private final Set<NodeInfo> asked = new HashSet<>();
 	private final KademliaId lookupId;
 
-	public NodeLookup(Node node, KademliaId lookupId) {
+	private AtomicBoolean valueFound = new AtomicBoolean();
+
+	public GetValueOperation(Node node, KademliaId lookupId) {
 		this.localNode = node;
 		this.lookupId = lookupId;
 	}
 
-	public void execute(Consumer<List<NodeInfo>> callback) {
+	public void execute(Consumer<String> callback) {
 		this.nodes.add(this.localNode.getInfo());
+
+		// TODO: check if all nodes are contacted then?
 		handleNodes(this.localNode.getRoutingTable().getAllNodes(), callback);
 
 
@@ -45,25 +50,40 @@ public class NodeLookup {
 	}
 
 	// TODO: SEEMS LIKE INFINITE LOOP CHECK THIS (RECURSIVE)
-	private void handleNodes(List<NodeInfo> nodes, Consumer<List<NodeInfo>> callback) {
+	private void handleNodes(List<NodeInfo> nodes, Consumer<String> callback) {
 		// System.out.println("Number of nodes received: " + nodes.size());
 		synchronized (this.nodes) {
 			for (final NodeInfo info : new ArrayList<>(nodes)) {
+
+				if (this.valueFound.get()) {
+					break;
+				}
+
 				this.nodes.add(info);
 				if (!this.asked.contains(info)) {
-					this.localNode.sendMessage(info, Messages.FindNodes,
-							new FindNodesRequest(this.localNode.getInfo(), this.lookupId), (response) -> {
+					this.localNode.sendMessage(info, Messages.Get,
+							new GetValueRequest(this.localNode.getInfo(), this.lookupId), (response) -> {
+
+								if (this.valueFound.get()) {
+									return;
+								}
+
+								if (response.getValue() != null) {
+									this.valueFound.set(true);
+									callback.accept(response.getValue());
+								}
 								this.asked.add(info); // TODO: should we do this before sending message?
 								this.localNode.getRoutingTable().insert(info);
 								handleNodes(response.getNodes(), callback);
-							}, FindNodesResponse.class);
+
+							}, GetValueResponse.class);
 				}
 			}
 
 			this.asked.add(this.localNode.getInfo());
 			if (isFinished()) {
 				log.debug("Finished getting closest nodes to: {}, nodes: {}. ", this.lookupId, getClosestNodes());
-				callback.accept(getClosestNodes());
+				callback.accept(null);
 			}
 		}
 	}

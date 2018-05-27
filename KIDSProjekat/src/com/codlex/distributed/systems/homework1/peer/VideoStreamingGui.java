@@ -1,11 +1,20 @@
 package com.codlex.distributed.systems.homework1.peer;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
+import com.codlex.distributed.systems.homework1.bootstrap.BootstrapNode;
+import com.codlex.distributed.systems.homework1.core.id.KademliaId;
+import com.codlex.distributed.systems.homework1.peer.dht.DHT;
+import com.codlex.distributed.systems.homework1.peer.dht.DHT.DHTEntry;
 import com.google.common.collect.ImmutableList;
 
 import javafx.application.Platform;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.JFXPanel;
 import javafx.event.EventHandler;
@@ -14,6 +23,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
@@ -24,6 +34,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 
 public class VideoStreamingGui {
 
@@ -35,7 +46,7 @@ public class VideoStreamingGui {
 	private Stage stage;
 	private final Node node;
 
-	protected ObservableList<String> searchResults = FXCollections.observableArrayList();
+	protected ObservableList<String> searchResults = FXCollections.observableArrayList("fdslfj");
 
 	public VideoStreamingGui(Node node) {
 		this.node = node;
@@ -52,6 +63,7 @@ public class VideoStreamingGui {
 			everything.getChildren().add(buildConnectBar());
 			everything.getChildren().add(buildMainPanel());
 			this.stage.setScene(new Scene(everything));
+			this.stage.setTitle(this.node.getInfo().toString());
 			this.stage.show();
 		});
 	}
@@ -80,7 +92,71 @@ public class VideoStreamingGui {
 		fakePlayerView.setFitWidth(320);
 		videoPlayer.getChildren().add(fakePlayerView);
 
+		videoPlayer.getChildren().add(buildDebugger());
+
+
+
 		return videoPlayer;
+	}
+
+	private javafx.scene.Node buildDebugger() {
+		VBox container = new VBox();
+
+		container.getChildren().add(new Label("Local DHT:"));
+
+		ObservableList<DHTEntry> listOfItems = FXCollections.observableArrayList();
+
+		this.node.getDht().getTable().addListener(new MapChangeListener<KademliaId, DHTEntry>() {
+			@Override
+			public void onChanged(
+					javafx.collections.MapChangeListener.Change<? extends KademliaId, ? extends DHTEntry> change) {
+				listOfItems.removeIf((key) -> {
+					return key.getKey().equals(change.getKey());
+				});
+
+				if (change.getValueAdded() != null) {
+					listOfItems.add((DHTEntry) change.getValueAdded());
+				}
+			}
+		});
+
+		TableView<DHTEntry> table = new TableView<>(listOfItems);
+
+		TableColumn<DHTEntry, String> column1 = new TableColumn<>("Key");
+        column1.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+            @Override
+            public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
+                return new SimpleStringProperty(p.getValue().getKey().toString());
+            }
+        });
+
+		TableColumn<DHTEntry, String> column2 = new TableColumn<>("Distance");
+        column1.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+            @Override
+            public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
+
+                return new SimpleStringProperty(Integer.toString(p.getValue().getKey().getDistance(VideoStreamingGui.this.node.getInfo().getId())));
+            }
+        });
+
+        TableColumn<DHTEntry, String> column3 = new TableColumn<>("Value");
+        column2.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+            @Override
+            public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
+                // for second column we use value
+                return new SimpleStringProperty(p.getValue().getValue().toString());
+            }
+        });
+		TableColumn<String, String> column = new TableColumn<>();
+		column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
+
+		table.getColumns().add(column1);
+		table.getColumns().add(column2);
+		table.getColumns().add(column3);
+
+		container.getChildren().add(table);
+
+		return container;
 	}
 
 	private javafx.scene.Node buildSearchAndUpload() {
@@ -144,7 +220,13 @@ public class VideoStreamingGui {
 		VBox search = new VBox();
 		search.getChildren().add(buildSearchBar());
 		TableView<String> table = new TableView<String>(this.searchResults);
-		table.setPlaceholder(new Label("You didn't search for anything yet."));
+
+		TableColumn<String, String> column = new TableColumn<>();
+		column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
+
+        table.getColumns().add(column);
+
+		//table.setPlaceholder(new Label("You didn't search for anything yet."));
 		search.getChildren().add(table);
 
 		return search;
@@ -211,7 +293,10 @@ public class VideoStreamingGui {
 	}
 
 	public static void main(String[] SDFSDJDS) {
-		new VideoStreamingGui(new Node(8002));
+		new BootstrapNode(Settings.bootstrapNode);
+		for (int i = 0; i < 3; i++) {
+			new VideoStreamingGui(new Node(8000 + i));
+		}
 	}
 
 }

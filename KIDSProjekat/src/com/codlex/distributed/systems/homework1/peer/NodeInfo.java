@@ -16,6 +16,7 @@ public class NodeInfo {
 	public KademliaId id;
 
 	public String address;
+
 	public int port;
 
 }

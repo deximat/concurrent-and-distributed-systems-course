@@ -9,9 +9,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @AllArgsConstructor
-@Getter
-public class StoreValueRequest implements Serializable {
-	private NodeInfo node;
-	private KademliaId key;
-	private String value;
+public class GetValueRequest implements Serializable {
+
+	@Getter
+	private final NodeInfo node;
+
+	@Getter
+	private final KademliaId lookupId;
+
 }

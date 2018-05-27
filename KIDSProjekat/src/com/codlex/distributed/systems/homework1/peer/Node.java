@@ -3,11 +3,13 @@ package com.codlex.distributed.systems.homework1.peer;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -20,11 +22,15 @@ import com.codlex.distributed.systems.homework1.peer.messages.ConnectMessageRequ
 import com.codlex.distributed.systems.homework1.peer.messages.ConnectMessageResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.FindNodesRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.FindNodesResponse;
+import com.codlex.distributed.systems.homework1.peer.messages.GetValueRequest;
+import com.codlex.distributed.systems.homework1.peer.messages.GetValueResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.Messages;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueResponse;
+import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
 import com.codlex.distributed.systems.homework1.peer.operations.NodeLookup;
 import com.codlex.distributed.systems.homework1.peer.routing.RoutingTable;
+import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 
 import io.vertx.core.Vertx;
@@ -117,11 +123,25 @@ public class Node {
 					}
 				});
 
+
+		router.route(HttpMethod.POST, Messages.Get.getAddress())
+		.handler(new JsonHandler<GetValueRequest, GetValueResponse>(GetValueRequest.class) {
+			public GetValueResponse callback(GetValueRequest message) {
+				Node.this.routingTable.insert(message.getNode());
+				String value = Node.this.dht.get(message.getLookupId());
+				if (value != null) {
+					return new GetValueResponse(ImmutableList.of(), value);
+				} else {
+					return new GetValueResponse(Node.this.routingTable.findClosest(message.getLookupId(), Settings.K), null);
+				}
+			}
+		});
+
 		router.route(HttpMethod.POST, Messages.Store.getAddress())
 				.handler(new JsonHandler<StoreValueRequest, StoreValueResponse>(StoreValueRequest.class) {
 					public StoreValueResponse callback(StoreValueRequest message) {
-						// Node.this.routingTable.insert(message.getNode());
-						Node.this.dht.store(message.getKey(), message.getValue());
+						Node.this.routingTable.insert(message.getNode());
+						Node.this.dht.put(message.getKey(), message.getValue());
 						return new StoreValueResponse();
 					}
 				});
@@ -196,14 +216,36 @@ public class Node {
 		this.region = region;
 	}
 
+
+	public void findValue(KademliaId key, Consumer<String> callback) {
+		new GetValueOperation(this, key).execute(callback);
+	}
+
 	public void search(String text, Consumer<List<String>> callback) {
-		throw new RuntimeException("Not implemented yet.");
+		List<String> results = new ArrayList<>();
+		String[] keywords = text.split(" ");
+		final AtomicInteger expectedValues = new AtomicInteger(keywords.length);
+		for (String keyword : keywords) {
+			KademliaId key = new KademliaId(keyword);
+			findValue(key, (value) -> {
+				synchronized (results) {
+					results.add(value);
+					if (expectedValues.decrementAndGet() == 0) {
+						callback.accept(results);
+					}
+				}
+			});
+		}
+		callback.accept(results);
 	}
 
 	public void uploadVideo(String name, Consumer<Object> callback) {
+		KademliaId videoId = new KademliaId(name);
+		dht.store(videoId, name);
+
 		// TODO: implement video object
 		DELAYER.schedule(() -> {
-			callback.accept("DONE");
+			callback.accept("DONE, distance from this node: " + videoId.getDistance(this.info.getId()));
 		}, 1000, TimeUnit.MILLISECONDS);
 	}
 
