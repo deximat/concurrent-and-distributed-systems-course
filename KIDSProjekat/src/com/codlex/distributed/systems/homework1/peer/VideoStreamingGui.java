@@ -131,7 +131,7 @@ public class VideoStreamingGui {
         });
 
 		TableColumn<DHTEntry, String> column2 = new TableColumn<>("Distance");
-        column1.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+        column2.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
             @Override
             public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
 
@@ -140,13 +140,14 @@ public class VideoStreamingGui {
         });
 
         TableColumn<DHTEntry, String> column3 = new TableColumn<>("Value");
-        column2.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+        column3.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
             @Override
             public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
                 // for second column we use value
                 return new SimpleStringProperty(p.getValue().getValue().toString());
             }
         });
+
 		TableColumn<String, String> column = new TableColumn<>();
 		column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
 
