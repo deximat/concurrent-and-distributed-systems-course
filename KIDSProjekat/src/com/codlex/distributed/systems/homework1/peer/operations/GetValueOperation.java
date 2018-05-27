@@ -13,6 +13,7 @@ import com.codlex.distributed.systems.homework1.core.id.KeyComparator;
 import com.codlex.distributed.systems.homework1.peer.Node;
 import com.codlex.distributed.systems.homework1.peer.NodeInfo;
 import com.codlex.distributed.systems.homework1.peer.Settings;
+import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.codlex.distributed.systems.homework1.peer.messages.FindNodesRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.GetValueRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.GetValueResponse;
@@ -38,7 +39,7 @@ public class GetValueOperation {
 		this.lookupId = lookupId;
 	}
 
-	public void execute(Consumer<String> callback) {
+	public void execute(Consumer<DHTEntry> callback) {
 		this.nodes.add(this.localNode.getInfo());
 
 		// TODO: check if all nodes are contacted then?
@@ -50,7 +51,7 @@ public class GetValueOperation {
 	}
 
 	// TODO: SEEMS LIKE INFINITE LOOP CHECK THIS (RECURSIVE)
-	private void handleNodes(List<NodeInfo> nodes, Consumer<String> callback) {
+	private void handleNodes(List<NodeInfo> nodes, Consumer<DHTEntry> callback) {
 		// System.out.println("Number of nodes received: " + nodes.size());
 		synchronized (this.nodes) {
 			for (final NodeInfo info : new ArrayList<>(nodes)) {
@@ -69,8 +70,9 @@ public class GetValueOperation {
 								}
 
 								if (response.getValue() != null) {
+									log.debug("Got value: " + response.getValue());
 									this.valueFound.set(true);
-									callback.accept(response.getValue());
+									callback.accept(response.getValue().get());
 								}
 								this.asked.add(info); // TODO: should we do this before sending message?
 								this.localNode.getRoutingTable().insert(info);

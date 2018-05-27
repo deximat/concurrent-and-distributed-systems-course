@@ -18,6 +18,10 @@ import com.codlex.distributed.systems.homework1.bootstrap.messages.JoinResponse;
 import com.codlex.distributed.systems.homework1.core.handers.JsonHandler;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.dht.DHT;
+import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
+import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
+import com.codlex.distributed.systems.homework1.peer.dht.content.Keyword;
+import com.codlex.distributed.systems.homework1.peer.dht.content.Video;
 import com.codlex.distributed.systems.homework1.peer.messages.ConnectMessageRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.ConnectMessageResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.FindNodesRequest;
@@ -27,10 +31,12 @@ import com.codlex.distributed.systems.homework1.peer.messages.GetValueResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.Messages;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueResponse;
+import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest.ValueContainer;
 import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
 import com.codlex.distributed.systems.homework1.peer.operations.NodeLookup;
 import com.codlex.distributed.systems.homework1.peer.routing.RoutingTable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.Gson;
 
 import io.vertx.core.Vertx;
@@ -66,7 +72,7 @@ public class Node {
 
 	public Node(int port) {
 //		try {
-			this.info = new NodeInfo(new KademliaId(this.region), "localhost", port);
+			this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), "localhost", port);
 //		} catch (UnknownHostException e) {
 //			e.printStackTrace();
 //			throw new RuntimeException(e);
@@ -87,11 +93,11 @@ public class Node {
 
 	public <Response extends Serializable> void sendMessage(final NodeInfo info, Messages messageType,
 			Serializable message, Consumer<Response> callback, Class<Response> responseClass) {
-		log.debug("Sending message to: {} messsage: {}", info, messageType.getAddress());
+		// log.debug("Sending message to: {} messsage: {}", info, messageType.getAddress());
 
 		this.client.post(info.port, info.address, messageType.getAddress(), (response) -> {
 			response.bodyHandler((body) -> {
-				log.debug("Response received from: {} response for: {}", info, messageType.getAddress());
+				// log.debug("Response received from: {} response for: {}", info, messageType.getAddress());
 
 				callback.accept(new Gson().fromJson(body.toString(), responseClass));
 			});
@@ -128,9 +134,9 @@ public class Node {
 		.handler(new JsonHandler<GetValueRequest, GetValueResponse>(GetValueRequest.class) {
 			public GetValueResponse callback(GetValueRequest message) {
 				Node.this.routingTable.insert(message.getNode());
-				String value = Node.this.dht.get(message.getLookupId());
+				DHTEntry value = Node.this.dht.get(message.getLookupId());
 				if (value != null) {
-					return new GetValueResponse(ImmutableList.of(), value);
+					return new GetValueResponse(ImmutableList.of(), ValueContainer.pack(value));
 				} else {
 					return new GetValueResponse(Node.this.routingTable.findClosest(message.getLookupId(), Settings.K), null);
 				}
@@ -141,7 +147,7 @@ public class Node {
 				.handler(new JsonHandler<StoreValueRequest, StoreValueResponse>(StoreValueRequest.class) {
 					public StoreValueResponse callback(StoreValueRequest message) {
 						Node.this.routingTable.insert(message.getNode());
-						Node.this.dht.put(message.getKey(), message.getValue());
+						Node.this.dht.put(message.getValue());
 						return new StoreValueResponse();
 					}
 				});
@@ -214,11 +220,11 @@ public class Node {
 
 	public void setRegion(Region region) {
 		this.region = region;
-		this.info = new NodeInfo(new KademliaId(region), this.info.address, this.info.port);
+		this.info = new NodeInfo(new KademliaId(IdType.Node, region), this.info.address, this.info.port);
 	}
 
 
-	public void findValue(KademliaId key, Consumer<String> callback) {
+	public void findValue(KademliaId key, Consumer<DHTEntry> callback) {
 		new GetValueOperation(this, key).execute(callback);
 	}
 
@@ -227,10 +233,14 @@ public class Node {
 		String[] keywords = text.split(" ");
 		final AtomicInteger expectedValues = new AtomicInteger(keywords.length);
 		for (String keyword : keywords) {
-			KademliaId key = new KademliaId(this.region, keyword);
+			KademliaId key = new KademliaId(IdType.Keyword, this.region, keyword);
+			log.debug("Searching for " + key);
 			findValue(key, (value) -> {
 				synchronized (results) {
-					results.add(value);
+					if (value != null) {
+						results.add(value.toString());
+					}
+
 					if (expectedValues.decrementAndGet() == 0) {
 						callback.accept(results);
 					}
@@ -242,11 +252,14 @@ public class Node {
 
 	public void uploadVideo(String name, Consumer<Object> callback) {
 		// TODO: DO UPLOAD FOR ALL REGIONS
-		KademliaId videoId = new KademliaId(this.region, name);
 		for (String keyword : name.split(" ")) {
-			dht.store(new KademliaId(this.region, keyword.trim()), name);
+			Keyword keywordObject = new Keyword(new KademliaId(IdType.Keyword, this.region, keyword.trim()), ImmutableSet.of(name));
+			dht.store(keywordObject);
 		}
-		dht.store(videoId, name);
+
+		KademliaId videoId = new KademliaId(IdType.Video, this.region, name);
+		Video video = new Video(videoId, null);
+		dht.store(video);
 
 		// TODO: implement video object
 		DELAYER.schedule(() -> {

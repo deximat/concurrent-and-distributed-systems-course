@@ -7,7 +7,7 @@ import java.util.Map.Entry;
 import com.codlex.distributed.systems.homework1.bootstrap.BootstrapNode;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.dht.DHT;
-import com.codlex.distributed.systems.homework1.peer.dht.DHT.DHTEntry;
+import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.google.common.collect.ImmutableList;
 
 import javafx.application.Platform;
@@ -112,7 +112,7 @@ public class VideoStreamingGui {
 			public void onChanged(
 					javafx.collections.MapChangeListener.Change<? extends KademliaId, ? extends DHTEntry> change) {
 				listOfItems.removeIf((key) -> {
-					return key.getKey().equals(change.getKey());
+					return key.getId().equals(change.getKey());
 				});
 
 				if (change.getValueAdded() != null) {
@@ -127,7 +127,7 @@ public class VideoStreamingGui {
         column1.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
             @Override
             public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
-                return new SimpleStringProperty(p.getValue().getKey().toString());
+                return new SimpleStringProperty(p.getValue().getId().toString());
             }
         });
 
@@ -136,7 +136,7 @@ public class VideoStreamingGui {
             @Override
             public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
 
-                return new SimpleStringProperty(Integer.toString(p.getValue().getKey().getDistance(VideoStreamingGui.this.node.getInfo().getId())));
+                return new SimpleStringProperty(Integer.toString(p.getValue().getId().getDistance(VideoStreamingGui.this.node.getInfo().getId())));
             }
         });
 
@@ -145,7 +145,7 @@ public class VideoStreamingGui {
             @Override
             public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
                 // for second column we use value
-                return new SimpleStringProperty(p.getValue().getValue().toString());
+                return new SimpleStringProperty(p.getValue().toString());
             }
         });
 
@@ -296,10 +296,10 @@ public class VideoStreamingGui {
 	}
 
 	public static void main(String[] SDFSDJDS) {
-		new BootstrapNode(Settings.bootstrapNode);
-		for (int i = 0; i < 6; i++) {
-			new VideoStreamingGui(new Node(8000 + i));
-		}
+//		new BootstrapNode(Settings.bootstrapNode);
+//		for (int i = 0; i < 6; i++) {
+			new VideoStreamingGui(new Node(8000 + 1));
+//		}
 	}
 
 }

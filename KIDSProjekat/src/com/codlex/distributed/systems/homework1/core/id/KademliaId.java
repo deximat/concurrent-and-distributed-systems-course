@@ -9,6 +9,7 @@ import java.util.BitSet;
 import org.apache.commons.lang.RandomStringUtils;
 
 import com.codlex.distributed.systems.homework1.peer.Region;
+import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
@@ -17,9 +18,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class KademliaId implements Serializable {
 
-	public final static int ID_LENGTH = 400;
+	public final static int ID_LENGTH = 409;
+	public final static int ID_LENGTH_TYPE = 2;
 	public final static int ID_LENGTH_REGION = 8;
-	public final static int ID_LENGTH_DATA = ID_LENGTH - ID_LENGTH_REGION;
+	public final static int ID_LENGTH_DATA = ID_LENGTH - ID_LENGTH_REGION - ID_LENGTH_TYPE;
 
 	private final byte[] bytes;
 
@@ -27,12 +29,12 @@ public class KademliaId implements Serializable {
 		this.bytes = bytes;
 	}
 
-	public KademliaId(Region region, String data) {
-		this.bytes = getBytes(region, data);
+	public KademliaId(IdType type, Region region, String data) {
+		this.bytes = getBytes(type, region, data);
 	}
 
-	public KademliaId(final Region region) {
-		this(region, RandomStringUtils.random(ID_LENGTH_DATA / 8, true, true));
+	public KademliaId(IdType type, final Region region) {
+		this(type, region, RandomStringUtils.random(ID_LENGTH_DATA / 8, true, true));
 	}
 
 	public BigInteger toBigInt() {
@@ -53,8 +55,9 @@ public class KademliaId implements Serializable {
 		return builder.toString();
 	}
 
-	private static byte[] getBytes(final Region region, final String data) {
+	private static byte[] getBytes(IdType type, final Region region, final String data) {
 		StringBuilder builder = new StringBuilder();
+		builder.append(type.getKey());
 		builder.append(region.getCode());
 		builder.append(fillUp(data));
 		log.debug(builder.toString() + " size: " + builder.length());
@@ -143,7 +146,9 @@ public class KademliaId implements Serializable {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("KademliaId(region = ");
+		builder.append("KademliaId(type = ");
+		builder.append(getType());
+		builder.append(", region = ");
 		builder.append(getRegion());
 		builder.append(", data = ");
 		builder.append(getData().trim());
@@ -151,13 +156,26 @@ public class KademliaId implements Serializable {
 		return builder.toString();
 	}
 
+	public IdType getType() {
+
+		byte[] type = Arrays.copyOfRange(this.bytes, 0, ID_LENGTH_TYPE);
+		String typeString = new String(type);
+		for (IdType typeEnum : IdType.values()) {
+			if (typeEnum.getKey().equals(typeString)) {
+				return typeEnum;
+			}
+		}
+
+		return IdType.Unknown;
+	}
+
 	private String getData() {
-		byte[] data = Arrays.copyOfRange(this.bytes, ID_LENGTH_REGION, ID_LENGTH);
+		byte[] data = Arrays.copyOfRange(this.bytes, ID_LENGTH_REGION + ID_LENGTH_TYPE, ID_LENGTH);
 		return new String(data);
 	}
 
 	public Region getRegion() {
-		byte[] region = Arrays.copyOfRange(this.bytes, 0, ID_LENGTH_REGION);
+		byte[] region = Arrays.copyOfRange(this.bytes, ID_LENGTH_TYPE, ID_LENGTH_TYPE + ID_LENGTH_REGION);
 		String regionString = new String(region);
 		for (Region regionEnum : Region.values()) {
 			if (regionEnum.getCode().equals(regionString)) {
@@ -169,6 +187,6 @@ public class KademliaId implements Serializable {
 	}
 
 	public static void main(String[] args) {
-		System.out.println(new KademliaId(Region.America, "bld"));
+		System.out.println(new KademliaId(IdType.Keyword, Region.America, "bld"));
 	}
 }
