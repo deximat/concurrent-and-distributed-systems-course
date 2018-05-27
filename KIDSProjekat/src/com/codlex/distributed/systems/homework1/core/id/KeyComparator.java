@@ -12,14 +12,15 @@ public class KeyComparator implements Comparator<NodeInfo>
 
     public KeyComparator(KademliaId key)
     {
-        this.key = key.getInt();
+        this.key = key.toBigInt();
     }
 
     @Override
     public int compare(NodeInfo n1, NodeInfo n2)
     {
-        BigInteger b1 = n1.getId().getInt();
-        BigInteger b2 = n2.getId().getInt();
+
+        BigInteger b1 = n1.getId().toBigInt();
+        BigInteger b2 = n2.getId().toBigInt();
 
         b1 = b1.xor(key);
         b2 = b2.xor(key);

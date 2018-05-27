@@ -274,6 +274,7 @@ public class VideoStreamingGui {
 		ChoiceBox<Region> regions = new ChoiceBox<Region>(FXCollections.observableArrayList(Region.values()));
 		regions.getSelectionModel().selectedItemProperty().addListener((object, oldValue, newValue) -> {
 			this.node.setRegion(newValue);
+			this.stage.setTitle(this.node.getInfo().toString());
 		});
 		regions.getSelectionModel().selectFirst();
 
@@ -295,7 +296,7 @@ public class VideoStreamingGui {
 
 	public static void main(String[] SDFSDJDS) {
 		new BootstrapNode(Settings.bootstrapNode);
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 6; i++) {
 			new VideoStreamingGui(new Node(8000 + i));
 		}
 	}

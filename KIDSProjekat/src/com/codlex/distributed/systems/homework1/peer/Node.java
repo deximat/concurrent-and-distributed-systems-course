@@ -47,7 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 public class Node {
 
 	@Getter
-	private final NodeInfo info;
+	private NodeInfo info;
 
 	private final HttpServer server;
 	private final HttpClient client;
@@ -62,11 +62,11 @@ public class Node {
 	@Getter
 	private final DHT dht = new DHT(this);
 
-	private Region region;
+	private Region region = Region.Serbia;
 
 	public Node(int port) {
 //		try {
-			this.info = new NodeInfo(new KademliaId(), "localhost", port);
+			this.info = new NodeInfo(new KademliaId(this.region), "localhost", port);
 //		} catch (UnknownHostException e) {
 //			e.printStackTrace();
 //			throw new RuntimeException(e);
@@ -214,6 +214,7 @@ public class Node {
 
 	public void setRegion(Region region) {
 		this.region = region;
+		this.info = new NodeInfo(new KademliaId(region), this.info.address, this.info.port);
 	}
 
 
@@ -226,7 +227,7 @@ public class Node {
 		String[] keywords = text.split(" ");
 		final AtomicInteger expectedValues = new AtomicInteger(keywords.length);
 		for (String keyword : keywords) {
-			KademliaId key = new KademliaId(keyword);
+			KademliaId key = new KademliaId(this.region, keyword);
 			findValue(key, (value) -> {
 				synchronized (results) {
 					results.add(value);
@@ -240,7 +241,11 @@ public class Node {
 	}
 
 	public void uploadVideo(String name, Consumer<Object> callback) {
-		KademliaId videoId = new KademliaId(name);
+		// TODO: DO UPLOAD FOR ALL REGIONS
+		KademliaId videoId = new KademliaId(this.region, name);
+		for (String keyword : name.split(" ")) {
+			dht.store(new KademliaId(this.region, keyword.trim()), name);
+		}
 		dht.store(videoId, name);
 
 		// TODO: implement video object
