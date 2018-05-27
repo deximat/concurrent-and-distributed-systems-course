@@ -1,16 +1,10 @@
-//////// TODO: KILL CREATE YOUR OWN - THIS ONE IS FROM INTERNET //
-
 package com.codlex.distributed.systems.homework1.core.id;
 
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
 
 import org.apache.commons.lang.RandomStringUtils;
 
