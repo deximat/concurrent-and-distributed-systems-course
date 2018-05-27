@@ -1,14 +1,8 @@
 package com.codlex.distributed.systems.homework1.peer;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import com.codlex.distributed.systems.homework1.bootstrap.BootstrapNode;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
-import com.codlex.distributed.systems.homework1.peer.dht.DHT;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
-import com.google.common.collect.ImmutableList;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -32,7 +26,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
-import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 
@@ -111,6 +104,7 @@ public class VideoStreamingGui {
 			@Override
 			public void onChanged(
 					javafx.collections.MapChangeListener.Change<? extends KademliaId, ? extends DHTEntry> change) {
+
 				listOfItems.removeIf((key) -> {
 					return key.getId().equals(change.getKey());
 				});
@@ -295,11 +289,11 @@ public class VideoStreamingGui {
 		return topBar;
 	}
 
-	public static void main(String[] SDFSDJDS) {
-//		new BootstrapNode(Settings.bootstrapNode);
-//		for (int i = 0; i < 6; i++) {
-			new VideoStreamingGui(new Node(8000 + 1));
-//		}
+	public static void main(String[] args) {
+		new BootstrapNode(Settings.bootstrapNode);
+		for (int i = 0; i < 3; i++) {
+			new VideoStreamingGui(new Node(8000 + i));
+		}
 	}
 
 }

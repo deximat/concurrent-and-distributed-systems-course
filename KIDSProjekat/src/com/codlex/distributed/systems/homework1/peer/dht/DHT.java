@@ -85,12 +85,15 @@ public class DHT {
 			Keyword keyword = value.getKeywordValue();
 			Keyword oldKeyword = (Keyword) this.table.get(keyword.getId());
 			Keyword toStore = Keyword.merge(keyword, oldKeyword);
+
+			this.table.remove(toStore.getId());
 			this.table.put(toStore.getId(), toStore);
 			break;
 		case Video:
 			Video video = value.getVideoValue();
 			Video oldVideo = (Video) this.table.get(video.getId());
 			Video toStoreVideo = Video.merge(video, oldVideo);
+			this.table.remove(toStoreVideo.getId());
 			this.table.put(toStoreVideo.getId(), toStoreVideo);
 			break;
 		default:

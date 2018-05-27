@@ -11,12 +11,15 @@ import com.codlex.distributed.systems.homework1.peer.dht.content.Video;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
 
 @AllArgsConstructor
 @Getter
+@ToString
 public class StoreValueRequest implements Serializable {
 
 	@Getter
+	@ToString
 	public static class ValueContainer {
 		private IdType type;
 		private Keyword keywordValue;
