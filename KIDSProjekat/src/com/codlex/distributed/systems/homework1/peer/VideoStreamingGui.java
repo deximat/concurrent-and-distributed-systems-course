@@ -11,12 +11,14 @@ import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.JFXPanel;
+import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -90,8 +92,6 @@ public class VideoStreamingGui {
 
 		videoPlayer.getChildren().add(buildDebugger());
 
-
-
 		return videoPlayer;
 	}
 
@@ -120,30 +120,34 @@ public class VideoStreamingGui {
 		TableView<DHTEntry> table = new TableView<>(listOfItems);
 
 		TableColumn<DHTEntry, String> column1 = new TableColumn<>("Key");
-        column1.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
-            @Override
-            public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
-                return new SimpleStringProperty(p.getValue().getId().toString());
-            }
-        });
+		column1.setCellValueFactory(
+				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+					@Override
+					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
+						return new SimpleStringProperty(p.getValue().getId().toString());
+					}
+				});
 
 		TableColumn<DHTEntry, String> column2 = new TableColumn<>("Distance");
-        column2.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
-            @Override
-            public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
+		column2.setCellValueFactory(
+				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+					@Override
+					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
 
-                return new SimpleStringProperty(Integer.toString(p.getValue().getId().getDistance(VideoStreamingGui.this.node.getInfo().getId())));
-            }
-        });
+						return new SimpleStringProperty(Integer.toString(
+								p.getValue().getId().getDistance(VideoStreamingGui.this.node.getInfo().getId())));
+					}
+				});
 
-        TableColumn<DHTEntry, String> column3 = new TableColumn<>("Value");
-        column3.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
-            @Override
-            public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
-                // for second column we use value
-                return new SimpleStringProperty(p.getValue().toString());
-            }
-        });
+		TableColumn<DHTEntry, String> column3 = new TableColumn<>("Value");
+		column3.setCellValueFactory(
+				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+					@Override
+					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
+						// for second column we use value
+						return new SimpleStringProperty(p.getValue().toString());
+					}
+				});
 
 		TableColumn<String, String> column = new TableColumn<>();
 		column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
@@ -174,10 +178,8 @@ public class VideoStreamingGui {
 	private javafx.scene.Node buildUpload() {
 		VBox upload = new VBox();
 		upload.setAlignment(Pos.CENTER);
-		String cssLayout = "-fx-border-color: GRAY;\n" +
-                "-fx-insets: 10;\n" +
-                "-fx-border-width: 1;\n" +
-                "-fx-border-style: solid;\n";
+		String cssLayout = "-fx-border-color: GRAY;\n" + "-fx-insets: 10;\n" + "-fx-border-width: 1;\n"
+				+ "-fx-border-style: solid;\n";
 		upload.setStyle(cssLayout);
 		upload.setSpacing(10);
 
@@ -197,21 +199,47 @@ public class VideoStreamingGui {
 		Label uploadStatus = new Label("");
 
 		Button uploadButton = new Button("Upload video");
-		uploadButton.addEventHandler(MouseEvent.MOUSE_CLICKED,
-			    new EventHandler<MouseEvent>() {
-	        @Override
-	        public void handle(MouseEvent e) {
-	        	uploadStatus.setText("UPLOADING...");
-	        	VideoStreamingGui.this.node.uploadVideo(nameField.getText(), (result) -> {
-	        		Platform.runLater(() -> {
-		        		uploadStatus.setText(result.toString());
-	        		});
-	        	});
-	        }
+		uploadButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+			@Override
+			public void handle(MouseEvent e) {
+				uploadStatus.setText("UPLOADING...");
+				VideoStreamingGui.this.node.uploadVideo(nameField.getText(), (result) -> {
+					Platform.runLater(() -> {
+						uploadStatus.setText(result.toString());
+					});
+				});
+			}
 		});
 		upload.getChildren().add(uploadStatus);
 		upload.getChildren().add(uploadButton);
 		return upload;
+	}
+
+	private class ButtonCell extends TableCell<String, String> {
+
+		private Button cellButton = new Button("Stream");
+		private String record;
+
+		ButtonCell() {
+			cellButton.setOnAction(new EventHandler<ActionEvent>() {
+				@Override
+				public void handle(ActionEvent t) {
+					log.debug("Clicked: " + getItem());
+				}
+			});
+		}
+
+		@Override
+		protected void updateItem(String record, boolean empty) {
+			super.updateItem(record, empty);
+			if (!empty) {
+				HBox box = new HBox();
+				box.setSpacing(10);
+				box.getChildren().add(new Label(record));
+				box.getChildren().add(this.cellButton);
+				setGraphic(this.cellButton);
+			}
+		}
 	}
 
 	private javafx.scene.Node buildSearch() {
@@ -219,12 +247,23 @@ public class VideoStreamingGui {
 		search.getChildren().add(buildSearchBar());
 		TableView<String> table = new TableView<String>(this.searchResults);
 
-		TableColumn<String, String> column = new TableColumn<>();
-		column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
+		TableColumn<String, String> column = new TableColumn<>("Video");
+		column.setCellValueFactory((data) -> new SimpleStringProperty(data.getValue()));
 
-        table.getColumns().add(column);
+		TableColumn<String, String> column2 = new TableColumn<>();
+		column2.setCellValueFactory((data) -> new SimpleStringProperty(data.getValue()));
+		column2.setCellFactory(new Callback<TableColumn<String, String>, TableCell<String, String>>() {
+			@Override
+			public TableCell<String, String> call(TableColumn<String, String> p) {
+				return new ButtonCell();
+			}
+		});
 
-		//table.setPlaceholder(new Label("You didn't search for anything yet."));
+		table.getColumns().add(column);
+		table.getColumns().add(column2);
+
+		// table.setPlaceholder(new Label("You didn't search for anything
+		// yet."));
 		search.getChildren().add(table);
 
 		return search;
@@ -240,18 +279,17 @@ public class VideoStreamingGui {
 		Button searchButton = new Button("Search");
 		searchButton.setPrefWidth(100);
 
-		searchButton.addEventHandler(MouseEvent.MOUSE_CLICKED,
-			    new EventHandler<MouseEvent>() {
-	        @Override
-	        public void handle(MouseEvent e) {
-	        	VideoStreamingGui.this.node.search(searchInput.getText(), (results) -> {
-	        		log.debug("Number of results in search: {}", results.size());
-	        		Platform.runLater(() -> {
-	        			VideoStreamingGui.this.searchResults.clear();
-		        		VideoStreamingGui.this.searchResults.addAll(results);
-	        		});
-	        	});
-	        }
+		searchButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+			@Override
+			public void handle(MouseEvent e) {
+				VideoStreamingGui.this.node.search(searchInput.getText(), (results) -> {
+					log.debug("Number of results in search: {}", results.size());
+					Platform.runLater(() -> {
+						VideoStreamingGui.this.searchResults.clear();
+						VideoStreamingGui.this.searchResults.addAll(results);
+					});
+				});
+			}
 		});
 		searchBar.getChildren().add(searchButton);
 
@@ -260,10 +298,8 @@ public class VideoStreamingGui {
 
 	private javafx.scene.Node buildConnectBar() {
 		HBox topBar = new HBox();
-		String cssLayout = "-fx-border-color: GRAY;\n" +
-                "-fx-insets: 10;\n" +
-                "-fx-border-width: 1;\n" +
-                "-fx-border-style: solid;\n";
+		String cssLayout = "-fx-border-color: GRAY;\n" + "-fx-insets: 10;\n" + "-fx-border-width: 1;\n"
+				+ "-fx-border-style: solid;\n";
 		topBar.setStyle(cssLayout);
 		topBar.setAlignment(Pos.CENTER);
 		topBar.setSpacing(10);
@@ -278,12 +314,11 @@ public class VideoStreamingGui {
 
 		topBar.getChildren().add(regions);
 		Button connectButton = new Button("Connect");
-		connectButton.addEventHandler(MouseEvent.MOUSE_CLICKED,
-			    new EventHandler<MouseEvent>() {
-	        @Override
-	        public void handle(MouseEvent e) {
-	        	VideoStreamingGui.this.node.bootstrap();
-	        }
+		connectButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+			@Override
+			public void handle(MouseEvent e) {
+				VideoStreamingGui.this.node.bootstrap();
+			}
 		});
 
 		topBar.getChildren().add(connectButton);
