@@ -1,17 +1,19 @@
 package com.codlex.distributed.systems.homework1.peer;
 
 import java.io.Serializable;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+
+import org.apache.commons.text.similarity.LevenshteinDistance;
 
 import com.codlex.distributed.systems.homework1.bootstrap.messages.JoinRequest;
 import com.codlex.distributed.systems.homework1.bootstrap.messages.JoinResponse;
@@ -30,19 +32,21 @@ import com.codlex.distributed.systems.homework1.peer.messages.GetValueRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.GetValueResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.Messages;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest;
-import com.codlex.distributed.systems.homework1.peer.messages.StoreValueResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest.ValueContainer;
+import com.codlex.distributed.systems.homework1.peer.messages.StoreValueResponse;
 import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
 import com.codlex.distributed.systems.homework1.peer.operations.NodeLookup;
 import com.codlex.distributed.systems.homework1.peer.routing.RoutingTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.primitives.Ints;
 import com.google.gson.Gson;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.impl.ConcurrentHashSet;
 import io.vertx.ext.web.Router;
 import lombok.Getter;
 import lombok.ToString;
@@ -114,7 +118,7 @@ public class Node {
 		router.route(HttpMethod.POST, Messages.Connect.getAddress())
 				.handler(new JsonHandler<ConnectMessageRequest, ConnectMessageResponse>(ConnectMessageRequest.class) {
 					public ConnectMessageResponse callback(ConnectMessageRequest message) {
-						log.debug("Received connect message from: {}", message.node);
+//						log.debug("Received connect message from: {}", message.node);
 						Node.this.routingTable.insert(message.node);
 						return new ConnectMessageResponse(23);
 					}
@@ -229,25 +233,38 @@ public class Node {
 	}
 
 	public void search(String text, Consumer<List<String>> callback) {
-		List<String> results = new ArrayList<>();
+		Set<String> results = new ConcurrentHashSet<>();
 		String[] keywords = text.split(" ");
+
 		final AtomicInteger expectedValues = new AtomicInteger(keywords.length);
 		for (String keyword : keywords) {
 			KademliaId key = new KademliaId(IdType.Keyword, this.region, keyword);
-			log.debug("Searching for " + key);
 			findValue(key, (value) -> {
 				synchronized (results) {
+
+					log.debug("Found {} for {}", value, keyword);
+
 					if (value != null) {
-						results.add(value.toString());
+						// we know it is keyword since we looked for keyword
+						Keyword keywordObject = (Keyword) value;
+						results.addAll(keywordObject.getVideos());
 					}
 
 					if (expectedValues.decrementAndGet() == 0) {
-						callback.accept(results);
+						List<String> videos = new ArrayList<>(results);
+
+						Collections.sort(videos, (a, b) -> {
+							LevenshteinDistance distanceCalculator = LevenshteinDistance.getDefaultInstance();
+							int aDist = distanceCalculator.apply(text, a);
+							int bDist = distanceCalculator.apply(text, b);
+							return Ints.compare(aDist, bDist);
+						});
+
+						callback.accept(videos);
 					}
 				}
 			});
 		}
-		callback.accept(results);
 	}
 
 	public void uploadVideo(String name, Consumer<Object> callback) {

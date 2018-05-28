@@ -60,7 +60,7 @@ public class KademliaId implements Serializable {
 		builder.append(type.getKey());
 		builder.append(region.getCode());
 		builder.append(fillUp(data));
-		log.debug(builder.toString() + " size: " + builder.length());
+		// log.debug(builder.toString() + " size: " + builder.length());
 		return builder.toString().getBytes(Charset.forName("UTF-8"));
 	}
 

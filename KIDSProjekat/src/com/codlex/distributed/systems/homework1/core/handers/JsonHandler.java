@@ -20,12 +20,11 @@ public abstract class JsonHandler<Request extends Serializable, Response extends
 
 	@Override
 	public void handle(final RoutingContext event) {
-		log.debug("Received message: {} deserialization to: {} ",  event.getBodyAsString(), JsonHandler.this.clazz.getSimpleName());
+		// log.debug("Received message: {} deserialization to: {} ",  event.getBodyAsString(), JsonHandler.this.clazz.getSimpleName());
 		final Gson gson = new Gson();
 		Request message = gson.fromJson(event.getBodyAsString(), JsonHandler.this.clazz);
 
 		event.response().end(gson.toJson(callback(message)));
-
 	}
 
 	public abstract Response callback(Request message);

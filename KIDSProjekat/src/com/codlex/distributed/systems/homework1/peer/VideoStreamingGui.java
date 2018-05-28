@@ -28,7 +28,9 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class VideoStreamingGui {
 
 	static {
@@ -243,6 +245,7 @@ public class VideoStreamingGui {
 	        @Override
 	        public void handle(MouseEvent e) {
 	        	VideoStreamingGui.this.node.search(searchInput.getText(), (results) -> {
+	        		log.debug("Number of results in search: {}", results.size());
 	        		Platform.runLater(() -> {
 	        			VideoStreamingGui.this.searchResults.clear();
 		        		VideoStreamingGui.this.searchResults.addAll(results);
