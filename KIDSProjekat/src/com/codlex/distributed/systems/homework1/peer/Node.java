@@ -1,6 +1,9 @@
 package com.codlex.distributed.systems.homework1.peer;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -19,6 +22,7 @@ import com.codlex.distributed.systems.homework1.bootstrap.messages.JoinRequest;
 import com.codlex.distributed.systems.homework1.bootstrap.messages.JoinResponse;
 import com.codlex.distributed.systems.homework1.core.handers.JsonHandler;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
+import com.codlex.distributed.systems.homework1.core.streaming.StreamingServer;
 import com.codlex.distributed.systems.homework1.peer.dht.DHT;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
@@ -48,6 +52,9 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.impl.ConcurrentHashSet;
 import io.vertx.ext.web.Router;
+import javafx.application.Platform;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +62,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @ToString(of = { "info" })
 public class Node {
+
+	@Getter
+	private final IntegerProperty currentStreamers = new SimpleIntegerProperty();
 
 	@Getter
 	private NodeInfo info;
@@ -74,7 +84,9 @@ public class Node {
 
 	private Region region = Region.Serbia;
 
-	public Node(int port) {
+	private StreamingServer streamingServer;
+
+	public Node(int port, int streamingPort) {
 //		try {
 			this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), "localhost", port);
 //		} catch (UnknownHostException e) {
@@ -85,8 +97,7 @@ public class Node {
 		this.server = createServer();
 		this.client = createClient();
 		this.routingTable = new RoutingTable(this.info);
-
-		// new NodeGui(this);
+		this.streamingServer = new StreamingServer(this, streamingPort);
 
 	}
 
@@ -285,4 +296,25 @@ public class Node {
 	}
 
 	private static final ScheduledExecutorService DELAYER = Executors.newSingleThreadScheduledExecutor();
+
+	public String getVideoForStreaming(final KademliaId id) {
+//		Video video = (Video) this.dht.get(id);
+//		video.incrementViews();
+		Platform.runLater(() -> {
+			log.debug("Incremending number of streamers.");
+			this.currentStreamers.add(1);
+		});
+
+//		return video.getVideoData();
+
+			return "/Users/dejanpe/ma.mp4";
+
+	}
+
+	public void onVideoStreamingEnd() {
+		Platform.runLater(() -> {
+			log.debug("Decrementing number of streamers.");
+			this.currentStreamers.subtract(1);
+		});
+	}
 }

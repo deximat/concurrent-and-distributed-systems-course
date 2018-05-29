@@ -14,7 +14,7 @@ public class NodeFactory {
 
 	public static void create(int numberOfNodesInt) {
 		for (int i = 0; i < numberOfNodesInt; i++) {
-			new Node(portGenerator.incrementAndGet()).bootstrap();
+			new Node(portGenerator.incrementAndGet(), portGenerator.incrementAndGet()).bootstrap();
 		}
 	}
 

@@ -27,6 +27,9 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.util.Callback;
@@ -44,6 +47,7 @@ public class VideoStreamingGui {
 	private final Node node;
 
 	protected ObservableList<String> searchResults = FXCollections.observableArrayList("fdslfj");
+	private MediaView mediaView;
 
 	public VideoStreamingGui(Node node) {
 		this.node = node;
@@ -84,12 +88,17 @@ public class VideoStreamingGui {
 
 		videoPlayer.getChildren().add(label);
 
-		final Image fakePlayer = new Image("fakePlayer.png");
-		ImageView fakePlayerView = new ImageView(fakePlayer);
-		fakePlayerView.setFitHeight(240);
-		fakePlayerView.setFitWidth(320);
-		videoPlayer.getChildren().add(fakePlayerView);
+		this.mediaView = new MediaView();
+        mediaView.setFitHeight(500);
+        mediaView.setFitWidth(500);
 
+        videoPlayer.getChildren().add(mediaView);
+
+		videoPlayer.getChildren().add(new Label("Current streamers count: "));
+
+		Label streamersCount = new Label();
+		streamersCount.textProperty().bind(this.node.getCurrentStreamers().asString());
+		videoPlayer.getChildren().add(streamersCount);
 		videoPlayer.getChildren().add(buildDebugger());
 
 		return videoPlayer;
@@ -218,6 +227,21 @@ public class VideoStreamingGui {
 	private class ButtonCell extends TableCell<String, String> {
 
 		private Button cellButton = new Button("Stream");
+		{
+			cellButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+				@Override
+				public void handle(MouseEvent e) {
+					Media media = new Media("http://samples.mplayerhq.hu/V-codecs/h264/interlaced_crop.mp4");
+			        MediaPlayer mediaPlayer = new MediaPlayer(media);
+			        mediaPlayer.setAutoPlay(true);
+
+			        MediaPlayer old = VideoStreamingGui.this.mediaView.getMediaPlayer();
+			        VideoStreamingGui.this.mediaView.setMediaPlayer(mediaPlayer);
+			        old.stop();
+				}
+			});
+		}
+
 		private String record;
 
 		ButtonCell() {
@@ -329,9 +353,9 @@ public class VideoStreamingGui {
 
 	public static void main(String[] args) {
 		new BootstrapNode(Settings.bootstrapNode);
-		for (int i = 0; i < 3; i++) {
-			new VideoStreamingGui(new Node(8000 + i));
-		}
+//		for (int i = 0; i < 3; i++) {
+			new VideoStreamingGui(new Node(8000 + 1, 8000));
+//		}
 	}
 
 }
