@@ -1,5 +1,8 @@
 package com.codlex.distributed.systems.homework1.peer.dht;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +22,7 @@ import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest.
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueResponse;
 import com.codlex.distributed.systems.homework1.peer.operations.NodeLookup;
 import com.google.common.base.Objects;
+import com.google.common.io.Files;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
@@ -95,6 +99,13 @@ public class DHT {
 			Video toStoreVideo = Video.merge(video, oldVideo);
 			this.table.remove(toStoreVideo.getId());
 			this.table.put(toStoreVideo.getId(), toStoreVideo);
+			// save file
+			try {
+				Files.write(video.getVideoData(), new File("videos/", video.getId().getData()));
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			break;
 		default:
 			throw new RuntimeException("Not implemented yet.");

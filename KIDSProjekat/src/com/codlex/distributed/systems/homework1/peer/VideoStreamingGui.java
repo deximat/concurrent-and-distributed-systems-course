@@ -1,12 +1,17 @@
 package com.codlex.distributed.systems.homework1.peer;
 
+import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.codlex.distributed.systems.homework1.bootstrap.BootstrapNode;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
+import com.google.common.collect.Lists;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -32,7 +37,9 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.scene.text.Font;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.util.Callback;
 import lombok.extern.slf4j.Slf4j;
 
@@ -203,7 +210,19 @@ public class VideoStreamingGui {
 		name.getChildren().add(new Label("Name: "));
 		TextField nameField = new TextField();
 		name.getChildren().add(nameField);
-		name.getChildren().add(new Button("Browse file..."));
+		Button browseFileButton = new Button("Browse file...");
+		Label filePath = new Label();
+		name.getChildren().add(filePath);
+		browseFileButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+			@Override
+			public void handle(MouseEvent event) {
+				FileChooser fileChooser = new FileChooser();
+				fileChooser.setTitle("Open Video File");
+				filePath.textProperty().set(fileChooser.showOpenDialog(stage).getAbsolutePath());
+				fileChooser.setSelectedExtensionFilter(new ExtensionFilter("Video file."));
+			}
+		});
+		name.getChildren().add(browseFileButton);
 
 		upload.getChildren().add(name);
 
@@ -214,7 +233,13 @@ public class VideoStreamingGui {
 			@Override
 			public void handle(MouseEvent e) {
 				uploadStatus.setText("UPLOADING...");
-				VideoStreamingGui.this.node.uploadVideo(nameField.getText(), (result) -> {
+				byte[] bytes = null;
+				try {
+					bytes = Files.readAllBytes(Paths.get(filePath.getText()));
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+				VideoStreamingGui.this.node.uploadVideo(nameField.getText(), bytes, (result) -> {
 					Platform.runLater(() -> {
 						uploadStatus.setText(result.toString());
 					});
@@ -234,7 +259,7 @@ public class VideoStreamingGui {
 		new GetValueOperation(node, videoId).execute((targetNode, value) -> {
 			Platform.runLater(() -> {
 				log.debug("Target node:" + targetNode);
-				String URI = String.format("http://%s:%d/%s", targetNode.address, targetNode.streamingPort, URLEncoder.encode(videoId.toString()));
+				String URI = String.format("http://%s:%d/%s", targetNode.address, targetNode.streamingPort, URLEncoder.encode(videoId.toHex()));
 
 				Media media = new Media(URI);
 		        MediaPlayer mediaPlayer = new MediaPlayer(media);
@@ -242,14 +267,14 @@ public class VideoStreamingGui {
 
 		        MediaPlayer old = VideoStreamingGui.this.mediaView.getMediaPlayer();
 		        VideoStreamingGui.this.mediaView.setMediaPlayer(mediaPlayer);
-		        old.stop();
+
+		        if (old != null) {
+		        	old.stop();
+		        }
 
 			});
 
 		});
-		// get node
-
-//
 	}
 
 	private class ButtonCell extends TableCell<String, String> {

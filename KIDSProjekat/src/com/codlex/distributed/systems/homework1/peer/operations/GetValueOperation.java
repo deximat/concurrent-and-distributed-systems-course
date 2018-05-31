@@ -84,10 +84,11 @@ public class GetValueOperation {
 			}
 
 			this.asked.add(this.localNode.getInfo());
-			if (isFinished()) {
-				log.debug("Finished getting closest nodes to: {}, nodes: {}. ", this.lookupId, getClosestNodes());
-				callback.accept(null, null);
-			}
+
+//			if (isFinished()) {
+//				log.debug("Finished getting closest nodes to: {}, nodes: {}. ", this.lookupId, getClosestNodes());
+//				callback.accept(null, null);
+//			}
 		}
 	}
 

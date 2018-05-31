@@ -40,12 +40,11 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 	@Override
 	public void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request)
 			throws Exception {
-		log.debug("Streaming started!");
-		final String videoId = getVideoId(request);
-		String fileName = this.node.getVideoForStreaming(new KademliaId(videoId.getBytes()));
+		final KademliaId videoId = getVideoId(request);
+		String fileName = this.node.getVideoForStreaming(videoId);
+		log.debug("Streaming started: {}", fileName);
 
-		File file = new File(fileName);
-
+		File file = new File("videos/", fileName);
 		if (file.isHidden() || !file.exists()) {
 			System.err.println("NOT_FOUND");
 			return;
@@ -103,8 +102,9 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 		}
 	}
 
-	private String getVideoId(FullHttpRequest request) {
-		return URLDecoder.decode(request.getUri().replace("/", ""));
+	private KademliaId getVideoId(FullHttpRequest request) {
+		String idString = URLDecoder.decode(request.getUri().replace("/", ""));
+		return new KademliaId(idString.getBytes());
 	}
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {

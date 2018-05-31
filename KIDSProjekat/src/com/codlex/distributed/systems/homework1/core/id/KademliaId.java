@@ -168,9 +168,9 @@ public class KademliaId implements Serializable {
 		return IdType.Unknown;
 	}
 
-	private String getData() {
+	public String getData() {
 		byte[] data = Arrays.copyOfRange(this.bytes, ID_LENGTH_REGION + ID_LENGTH_TYPE, ID_LENGTH);
-		return new String(data);
+		return new String(data).trim();
 	}
 
 	public Region getRegion() {
@@ -183,6 +183,10 @@ public class KademliaId implements Serializable {
 		}
 
 		return Region.Unknown;
+	}
+
+	public String toHex() {
+		return new String(this.bytes);
 	}
 
 	public static void main(String[] args) {

@@ -280,7 +280,7 @@ public class Node {
 		}
 	}
 
-	public void uploadVideo(String name, Consumer<Object> callback) {
+	public void uploadVideo(String name, byte[] videoData, Consumer<Object> callback) {
 		// TODO: DO UPLOAD FOR ALL REGIONS
 		for (String keyword : name.split(" ")) {
 			Keyword keywordObject = new Keyword(new KademliaId(IdType.Keyword, this.region, keyword.trim()), ImmutableSet.of(name));
@@ -288,7 +288,7 @@ public class Node {
 		}
 
 		KademliaId videoId = new KademliaId(IdType.Video, this.region, name);
-		Video video = new Video(videoId, null);
+		Video video = new Video(videoId, videoData);
 		dht.store(video);
 
 		// TODO: implement video object
@@ -300,16 +300,15 @@ public class Node {
 	private static final ScheduledExecutorService DELAYER = Executors.newSingleThreadScheduledExecutor();
 
 	public String getVideoForStreaming(final KademliaId id) {
-//		Video video = (Video) this.dht.get(id);
-//		video.incrementViews();
+		Video video = (Video) this.dht.get(id);
+		video.incrementViews();
+
 		Platform.runLater(() -> {
 			log.debug("Incremending number of streamers.");
 			this.currentStreamers.add(1);
 		});
 
-//		return video.getVideoData();
-
-		return "/Users/dejanpe/ma.mp4";
+		return video.getId().getData();
 	}
 
 	public void onVideoStreamingEnd() {
