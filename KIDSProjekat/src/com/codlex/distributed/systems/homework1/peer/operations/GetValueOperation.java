@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -39,7 +40,7 @@ public class GetValueOperation {
 		this.lookupId = lookupId;
 	}
 
-	public void execute(Consumer<DHTEntry> callback) {
+	public void execute(BiConsumer<NodeInfo, DHTEntry> callback) {
 		this.nodes.add(this.localNode.getInfo());
 
 		// TODO: check if all nodes are contacted then?
@@ -51,7 +52,7 @@ public class GetValueOperation {
 	}
 
 	// TODO: SEEMS LIKE INFINITE LOOP CHECK THIS (RECURSIVE)
-	private void handleNodes(List<NodeInfo> nodes, Consumer<DHTEntry> callback) {
+	private void handleNodes(List<NodeInfo> nodes, BiConsumer<NodeInfo, DHTEntry> callback) {
 		// System.out.println("Number of nodes received: " + nodes.size());
 		synchronized (this.nodes) {
 			for (final NodeInfo info : new ArrayList<>(nodes)) {
@@ -72,7 +73,7 @@ public class GetValueOperation {
 								if (response.getValue() != null) {
 									log.debug("Got value: " + response.getValue());
 									this.valueFound.set(true);
-									callback.accept(response.getValue().get());
+									callback.accept(info, response.getValue().get());
 								}
 								this.asked.add(info); // TODO: should we do this before sending message?
 								this.localNode.getRoutingTable().insert(info);
@@ -85,7 +86,7 @@ public class GetValueOperation {
 			this.asked.add(this.localNode.getInfo());
 			if (isFinished()) {
 				log.debug("Finished getting closest nodes to: {}, nodes: {}. ", this.lookupId, getClosestNodes());
-				callback.accept(null);
+				callback.accept(null, null);
 			}
 		}
 	}

@@ -142,7 +142,6 @@ public class KademliaId implements Serializable {
 		return ID_LENGTH - this.xor(to).getFirstSetBitIndex();
 	}
 
-
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();

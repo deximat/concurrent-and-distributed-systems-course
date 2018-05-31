@@ -1,8 +1,12 @@
 package com.codlex.distributed.systems.homework1.peer;
 
+import java.net.URLEncoder;
+
 import com.codlex.distributed.systems.homework1.bootstrap.BootstrapNode;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
+import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
+import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -11,7 +15,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.JFXPanel;
-import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -22,8 +25,6 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -46,7 +47,8 @@ public class VideoStreamingGui {
 	private Stage stage;
 	private final Node node;
 
-	protected ObservableList<String> searchResults = FXCollections.observableArrayList("fdslfj");
+	protected ObservableList<String> searchResults = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
+
 	private MediaView mediaView;
 
 	public VideoStreamingGui(Node node) {
@@ -224,6 +226,32 @@ public class VideoStreamingGui {
 		return upload;
 	}
 
+
+	protected void startStreaming(String videoName) {
+		log.debug("Started streaming {}", videoName);
+
+		KademliaId videoId = new KademliaId(IdType.Video, this.node.getRegion(), videoName);
+		new GetValueOperation(node, videoId).execute((targetNode, value) -> {
+			Platform.runLater(() -> {
+				log.debug("Target node:" + targetNode);
+				String URI = String.format("http://%s:%d/%s", targetNode.address, targetNode.streamingPort, URLEncoder.encode(videoId.toString()));
+
+				Media media = new Media(URI);
+		        MediaPlayer mediaPlayer = new MediaPlayer(media);
+		        mediaPlayer.setAutoPlay(true);
+
+		        MediaPlayer old = VideoStreamingGui.this.mediaView.getMediaPlayer();
+		        VideoStreamingGui.this.mediaView.setMediaPlayer(mediaPlayer);
+		        old.stop();
+
+			});
+
+		});
+		// get node
+
+//
+	}
+
 	private class ButtonCell extends TableCell<String, String> {
 
 		private Button cellButton = new Button("Stream");
@@ -231,36 +259,19 @@ public class VideoStreamingGui {
 			cellButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
 				@Override
 				public void handle(MouseEvent e) {
-					Media media = new Media("http://samples.mplayerhq.hu/V-codecs/h264/interlaced_crop.mp4");
-			        MediaPlayer mediaPlayer = new MediaPlayer(media);
-			        mediaPlayer.setAutoPlay(true);
-
-			        MediaPlayer old = VideoStreamingGui.this.mediaView.getMediaPlayer();
-			        VideoStreamingGui.this.mediaView.setMediaPlayer(mediaPlayer);
-			        old.stop();
+					startStreaming(getItem());
 				}
 			});
 		}
-
-		private String record;
 
 		ButtonCell() {
-			cellButton.setOnAction(new EventHandler<ActionEvent>() {
-				@Override
-				public void handle(ActionEvent t) {
-					log.debug("Clicked: " + getItem());
-				}
-			});
 		}
+
 
 		@Override
 		protected void updateItem(String record, boolean empty) {
 			super.updateItem(record, empty);
 			if (!empty) {
-				HBox box = new HBox();
-				box.setSpacing(10);
-				box.getChildren().add(new Label(record));
-				box.getChildren().add(this.cellButton);
 				setGraphic(this.cellButton);
 			}
 		}
@@ -274,7 +285,7 @@ public class VideoStreamingGui {
 		TableColumn<String, String> column = new TableColumn<>("Video");
 		column.setCellValueFactory((data) -> new SimpleStringProperty(data.getValue()));
 
-		TableColumn<String, String> column2 = new TableColumn<>();
+		TableColumn<String, String> column2 = new TableColumn<>("DUGME");
 		column2.setCellValueFactory((data) -> new SimpleStringProperty(data.getValue()));
 		column2.setCellFactory(new Callback<TableColumn<String, String>, TableCell<String, String>>() {
 			@Override
@@ -307,7 +318,7 @@ public class VideoStreamingGui {
 			@Override
 			public void handle(MouseEvent e) {
 				VideoStreamingGui.this.node.search(searchInput.getText(), (results) -> {
-					log.debug("Number of results in search: {}", results.size());
+					log.debug("Results in search: {}", results);
 					Platform.runLater(() -> {
 						VideoStreamingGui.this.searchResults.clear();
 						VideoStreamingGui.this.searchResults.addAll(results);
@@ -353,9 +364,9 @@ public class VideoStreamingGui {
 
 	public static void main(String[] args) {
 		new BootstrapNode(Settings.bootstrapNode);
-//		for (int i = 0; i < 3; i++) {
-			new VideoStreamingGui(new Node(8000 + 1, 8000));
-//		}
+		for (int i = 1; i < 4; i++) {
+			new VideoStreamingGui(new Node(8100 + i, 8000 + i * 2));
+		}
 	}
 
 }

@@ -14,6 +14,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import org.apache.commons.text.similarity.LevenshteinDistance;
@@ -82,23 +83,24 @@ public class Node {
 	@Getter
 	private final DHT dht = new DHT(this);
 
+	@Getter
 	private Region region = Region.Serbia;
 
 	private StreamingServer streamingServer;
 
 	public Node(int port, int streamingPort) {
 //		try {
-			this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), "localhost", port);
+			this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), "localhost", port, streamingPort);
 //		} catch (UnknownHostException e) {
 //			e.printStackTrace();
 //			throw new RuntimeException(e);
 //		}
 
+		log.debug("{}, streaming port: {}", port, streamingPort);
 		this.server = createServer();
 		this.client = createClient();
 		this.routingTable = new RoutingTable(this.info);
 		this.streamingServer = new StreamingServer(this, streamingPort);
-
 	}
 
 	// TODO: call this
@@ -235,11 +237,11 @@ public class Node {
 
 	public void setRegion(Region region) {
 		this.region = region;
-		this.info = new NodeInfo(new KademliaId(IdType.Node, region), this.info.address, this.info.port);
+		this.info = new NodeInfo(new KademliaId(IdType.Node, region), this.info.address, this.info.port, this.info.streamingPort);
 	}
 
 
-	public void findValue(KademliaId key, Consumer<DHTEntry> callback) {
+	public void findValue(KademliaId key, BiConsumer<NodeInfo, DHTEntry> callback) {
 		new GetValueOperation(this, key).execute(callback);
 	}
 
@@ -250,7 +252,7 @@ public class Node {
 		final AtomicInteger expectedValues = new AtomicInteger(keywords.length);
 		for (String keyword : keywords) {
 			KademliaId key = new KademliaId(IdType.Keyword, this.region, keyword);
-			findValue(key, (value) -> {
+			findValue(key, (node, value) -> {
 				synchronized (results) {
 
 					log.debug("Found {} for {}", value, keyword);
@@ -307,8 +309,7 @@ public class Node {
 
 //		return video.getVideoData();
 
-			return "/Users/dejanpe/ma.mp4";
-
+		return "/Users/dejanpe/ma.mp4";
 	}
 
 	public void onVideoStreamingEnd() {

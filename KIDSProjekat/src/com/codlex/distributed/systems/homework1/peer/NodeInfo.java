@@ -18,5 +18,6 @@ public class NodeInfo {
 	public String address;
 
 	public int port;
+	public int streamingPort;
 
 }
