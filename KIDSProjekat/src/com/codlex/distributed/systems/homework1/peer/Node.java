@@ -201,8 +201,6 @@ public class Node {
 
 	public final void bootstrap() {
 		sendMessage(Settings.bootstrapNode, Messages.Join, new JoinRequest(this.info), (response) -> {
-			System.out.println("Bootstrapning node " + this.info);
-			System.out.println("b: " + response.getBootstrapNode());
 			bootstrap(response.getBootstrapNode());
 		}, JoinResponse.class);
 	}

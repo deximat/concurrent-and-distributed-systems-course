@@ -14,6 +14,7 @@ import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
+import com.codlex.distributed.systems.homework1.starter.Log4jConfigurator;
 import com.google.common.collect.Lists;
 
 import javafx.application.Platform;
@@ -103,8 +104,9 @@ public class VideoStreamingGui {
 		videoPlayer.getChildren().add(this.videoLabel);
 
 		this.mediaView = new MediaView();
-        this.mediaView.setFitHeight(500);
+        this.mediaView.setFitHeight(200);
         this.mediaView.setFitWidth(500);
+
 
         videoPlayer.getChildren().add(mediaView);
 
@@ -401,26 +403,11 @@ public class VideoStreamingGui {
 		return topBar;
 	}
 
-	public static void deleteFolder(File folder) {
-	    File[] files = folder.listFiles();
-	    if(files!=null) { //some JVMs return null for empty dirs
-	        for(File f: files) {
-	            if(f.isDirectory()) {
-	                deleteFolder(f);
-	            } else {
-	                f.delete();
-	            }
-	        }
-	    }
-	    folder.delete();
-	}
-
-	public static void main(String[] args) throws IOException {
-		deleteFolder(new File("videos"));
-		new BootstrapNode(Settings.bootstrapNode);
-		for (int i = 1; i < 4; i++) {
-			new VideoStreamingGui(new Node(8100 + i, 8000 + i * 2));
-		}
+	public static void main(String[] args) {
+		Integer port = Integer.parseInt(args[0]);
+		Integer streamingPort = Integer.parseInt(args[1]);
+		Log4jConfigurator.configure(String.format("bootstrap-%d-%d.log", port, streamingPort));
+		new VideoStreamingGui(new Node(port, streamingPort));
 	}
 
 }

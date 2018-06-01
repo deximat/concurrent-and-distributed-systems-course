@@ -1,5 +1,6 @@
 package com.codlex.distributed.systems.homework1.bootstrap;
 
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.codlex.distributed.systems.homework1.bootstrap.messages.JoinRequest;
@@ -7,6 +8,7 @@ import com.codlex.distributed.systems.homework1.bootstrap.messages.JoinResponse;
 import com.codlex.distributed.systems.homework1.core.handers.JsonHandler;
 import com.codlex.distributed.systems.homework1.peer.NodeInfo;
 import com.codlex.distributed.systems.homework1.peer.Settings;
+import com.codlex.distributed.systems.homework1.starter.Log4jConfigurator;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
@@ -46,8 +48,8 @@ public class BootstrapNode {
 		return server;
 	}
 
-
 	public static void main(String[] args) {
+		Log4jConfigurator.configure("bootstrap.log");
 		new BootstrapNode(Settings.bootstrapNode);
 	}
 
