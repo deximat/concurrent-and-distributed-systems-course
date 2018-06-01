@@ -60,6 +60,7 @@ public class VideoStreamingGui {
 	protected ObservableList<String> searchResults = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
 
 	private MediaView mediaView;
+	private Label videoLabel;
 
 	public VideoStreamingGui(Node node) {
 		this.node = node;
@@ -95,10 +96,11 @@ public class VideoStreamingGui {
 		videoPlayer.setSpacing(50);
 		videoPlayer.setPrefWidth(500);
 
-		Label label = new Label("Need for speed soundtrack 1");
-		label.setFont(Font.font(30));
+		this.videoLabel = new Label("No video loaded");
 
-		videoPlayer.getChildren().add(label);
+		this.videoLabel.setFont(Font.font(30));
+
+		videoPlayer.getChildren().add(this.videoLabel);
 
 		this.mediaView = new MediaView();
         this.mediaView.setFitHeight(500);
@@ -272,6 +274,8 @@ public class VideoStreamingGui {
 		        MediaPlayer mediaPlayer = new MediaPlayer(media);
 		        mediaPlayer.setAutoPlay(true);
 
+		        this.videoLabel.textProperty().set(videoName);
+
 		        MediaPlayer old = VideoStreamingGui.this.mediaView.getMediaPlayer();
 		        VideoStreamingGui.this.mediaView.setMediaPlayer(mediaPlayer);
 
@@ -385,11 +389,14 @@ public class VideoStreamingGui {
 			@Override
 			public void handle(MouseEvent e) {
 				VideoStreamingGui.this.node.bootstrap();
+				topBar.setDisable(true);
 			}
 		});
 
+		Label taskLabel = new Label();
+		taskLabel.textProperty().bindBidirectional(this.node.getTask());
 		topBar.getChildren().add(connectButton);
-		topBar.getChildren().add(new Label(this.node.getCurrentTask()));
+		topBar.getChildren().add(taskLabel);
 
 		return topBar;
 	}

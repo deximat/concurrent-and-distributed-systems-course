@@ -1,14 +1,11 @@
 package com.codlex.distributed.systems.homework1.peer;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.attribute.FileAttribute;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -58,6 +55,8 @@ import io.vertx.ext.web.Router;
 import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -80,7 +79,8 @@ public class Node {
 
 	private final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor();
 
-	private final AtomicReference<String> task = new AtomicReference<String>("IDLE");
+	@Getter
+	private final StringProperty task = new SimpleStringProperty("NOT CONNECTED");
 
 	@Getter
 	private final DHT dht = new DHT(this);
@@ -94,20 +94,20 @@ public class Node {
 
 	public Node(int port, int streamingPort) {
 
-//		try {
-			this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), "localhost", port, streamingPort);
-//		} catch (UnknownHostException e) {
-//			e.printStackTrace();
-//			throw new RuntimeException(e);
-//		}
+		try {
+			this.info = new NodeInfo(new KademliaId(IdType.Node, this.region),
+					InetAddress.getLocalHost().getHostAddress(), port, streamingPort);
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+			throw new RuntimeException(e);
+		}
 
 		log.debug("{}, streaming port: {}", port, streamingPort);
 		this.server = createServer();
 		this.client = createClient();
 		this.routingTable = new RoutingTable(this.info);
 		this.streamingServer = new StreamingServer(this, streamingPort);
-		this.videoDirectory = "videos/" + this.info.id.toString() + "/";
-		new File(this.videoDirectory).mkdirs();
+		createFolderForVideos();
 	}
 
 	// TODO: call this
@@ -117,15 +117,26 @@ public class Node {
 
 	public <Response extends Serializable> void sendMessage(final NodeInfo info, Messages messageType,
 			Serializable message, Consumer<Response> callback, Class<Response> responseClass) {
-		// log.debug("Sending message to: {} messsage: {}", info, messageType.getAddress());
+		setTask("SENT " + messageType.getAddress());
+		// log.debug("Sending message to: {} messsage: {}", info,
+		// messageType.getAddress());
 
 		this.client.post(info.port, info.address, messageType.getAddress(), (response) -> {
 			response.bodyHandler((body) -> {
-				// log.debug("Response received from: {} response for: {}", info, messageType.getAddress());
+				// log.debug("Response received from: {} response for: {}",
+				// info, messageType.getAddress());
 
 				callback.accept(new Gson().fromJson(body.toString(), responseClass));
+				setTask("CONNECTED IDLE");
+
 			});
 		}).end(new Gson().toJson(message));
+	}
+
+	private void setTask(String task) {
+		Platform.runLater(() -> {
+			this.task.set(task);
+		});
 	}
 
 	private HttpClient createClient() {
@@ -138,7 +149,8 @@ public class Node {
 		router.route(HttpMethod.POST, Messages.Connect.getAddress())
 				.handler(new JsonHandler<ConnectMessageRequest, ConnectMessageResponse>(ConnectMessageRequest.class) {
 					public ConnectMessageResponse callback(ConnectMessageRequest message) {
-//						log.debug("Received connect message from: {}", message.node);
+						// log.debug("Received connect message from: {}",
+						// message.node);
 						Node.this.routingTable.insert(message.node);
 						return new ConnectMessageResponse(23);
 					}
@@ -153,23 +165,23 @@ public class Node {
 					}
 				});
 
-
 		router.route(HttpMethod.POST, Messages.Get.getAddress())
-		.handler(new JsonHandler<GetValueRequest, GetValueResponse>(GetValueRequest.class) {
-			public GetValueResponse callback(GetValueRequest message) {
-				Node.this.routingTable.insert(message.getNode());
-				DHTEntry value = Node.this.dht.get(message.getLookupId());
+				.handler(new JsonHandler<GetValueRequest, GetValueResponse>(GetValueRequest.class) {
+					public GetValueResponse callback(GetValueRequest message) {
+						Node.this.routingTable.insert(message.getNode());
+						DHTEntry value = Node.this.dht.get(message.getLookupId());
 
-				if (value != null) {
-					if (!message.isGetData()) {
-						value = value.getWithoutData();
+						if (value != null) {
+							if (!message.isGetData()) {
+								value = value.getWithoutData();
+							}
+							return new GetValueResponse(ImmutableList.of(), ValueContainer.pack(value));
+						} else {
+							return new GetValueResponse(
+									Node.this.routingTable.findClosest(message.getLookupId(), Settings.K), null);
+						}
 					}
-					return new GetValueResponse(ImmutableList.of(), ValueContainer.pack(value));
-				} else {
-					return new GetValueResponse(Node.this.routingTable.findClosest(message.getLookupId(), Settings.K), null);
-				}
-			}
-		});
+				});
 
 		router.route(HttpMethod.POST, Messages.Store.getAddress())
 				.handler(new JsonHandler<StoreValueRequest, StoreValueResponse>(StoreValueRequest.class) {
@@ -210,13 +222,13 @@ public class Node {
 
 			final NodeLookup lookup = new NodeLookup(this, this.info.getId());
 			lookup.execute((nodes) -> {
-//				// TODO: check if this is needed
-//				 refreshBuckets();
+				// // TODO: check if this is needed
+				// refreshBuckets();
 
 				log.debug("## Bootstraping of {} finished ", this.info);
 				onBootstrapFinished();
 
-				this.task.set("IDLE");
+				this.task.set("CONNECTED IDLE");
 			});
 
 			// this.routingTable.dump(this.info.getId().toString());
@@ -229,28 +241,36 @@ public class Node {
 	}
 
 	private void refreshBuckets() {
-		// TODO: To avoid redundant store RPCs for the same content from different nodes,
-		// a node only transfers a KV pair if its own ID is closer to the key than are the
+		// TODO: To avoid redundant store RPCs for the same content from
+		// different nodes,
+		// a node only transfers a KV pair if its own ID is closer to the key
+		// than are the
 		// IDs of other nodes.
-//		for (int i = 1; i < KademliaId.ID_LENGTH; i++) {
-//			final KademliaId current = this.info.getId().generateNodeIdByDistance(i);
-//			new NodeLookup(this, current).execute();
-//		}
+		// for (int i = 1; i < KademliaId.ID_LENGTH; i++) {
+		// final KademliaId current =
+		// this.info.getId().generateNodeIdByDistance(i);
+		// new NodeLookup(this, current).execute();
+		// }
 	}
 
 	public String toString() {
 		return this.info.getId().toString();
 	}
 
-	public String getCurrentTask() {
-		return this.task.get();
-	}
-
 	public void setRegion(Region region) {
 		this.region = region;
-		this.info = new NodeInfo(new KademliaId(IdType.Node, region), this.info.address, this.info.port, this.info.streamingPort);
+		this.info = new NodeInfo(new KademliaId(IdType.Node, region), this.info.address, this.info.port,
+				this.info.streamingPort);
+		createFolderForVideos();
 	}
 
+	private void createFolderForVideos() {
+		if (this.videoDirectory != null) {
+			new File(this.videoDirectory).delete();
+		}
+		this.videoDirectory = "videos/" + this.info.id.toString() + "/";
+		new File(this.videoDirectory).mkdirs();
+	}
 
 	public void findValue(KademliaId key, boolean getFullData, BiConsumer<NodeInfo, DHTEntry> callback) {
 		new GetValueOperation(this, key).execute(getFullData, callback);
@@ -292,25 +312,27 @@ public class Node {
 	}
 
 	public void uploadVideo(String name, byte[] videoData, Consumer<Object> callback) {
-		// TODO: DO UPLOAD FOR ALL REGIONS
-		for (String keyword : name.split(" ")) {
-			Keyword keywordObject = new Keyword(new KademliaId(IdType.Keyword, this.region, keyword.trim()), ImmutableSet.of(name));
-			dht.store(keywordObject);
+		// we need to make instance per region
+		for (Region region : Region.values()) {
+			for (String keyword : name.split(" ")) {
+				Keyword keywordObject = new Keyword(new KademliaId(IdType.Keyword, region, keyword.trim()),
+						ImmutableSet.of(name));
+				dht.store(keywordObject);
+			}
+
+			KademliaId videoId = new KademliaId(IdType.Video, region, name);
+			Video video = new Video(videoId, videoData);
+			dht.store(video);
 		}
 
-		KademliaId videoId = new KademliaId(IdType.Video, this.region, name);
-		Video video = new Video(videoId, videoData);
-		dht.store(video);
-
-		// TODO: implement video object
 		DELAYER.schedule(() -> {
-			callback.accept("DONE, distance from this node: " + videoId.getDistance(this.info.getId()));
+			callback.accept("DONE");
 		}, 1000, TimeUnit.MILLISECONDS);
 	}
 
 	private static final ScheduledExecutorService DELAYER = Executors.newSingleThreadScheduledExecutor();
 
-	public String getVideoForStreaming(final KademliaId id) {
+	public File getVideoForStreaming(final KademliaId id) {
 		Video video = (Video) this.dht.get(id);
 		video.incrementViews();
 
@@ -319,7 +341,7 @@ public class Node {
 			this.currentStreamers.add(1);
 		});
 
-		return video.getId().getData();
+		return video.getFile();
 	}
 
 	public void onVideoStreamingEnd() {

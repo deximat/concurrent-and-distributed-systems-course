@@ -8,6 +8,6 @@ public class Settings {
 	public static final int K = 1;
 	public static long refreshInterval = 1000000;
 
-	public static NodeInfo bootstrapNode = new NodeInfo(new KademliaId(IdType.Node, Region.Serbia, "0000"), "localhost", 1337, 1338);
+	public static NodeInfo bootstrapNode = new NodeInfo(new KademliaId(IdType.Node, Region.Serbia, "0000"), "192.168.1.233", 1337, 1338);
 
 }
