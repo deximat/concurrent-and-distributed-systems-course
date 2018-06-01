@@ -17,4 +17,7 @@ public class GetValueRequest implements Serializable {
 	@Getter
 	private final KademliaId lookupId;
 
+	@Getter
+	private final boolean getData;
+
 }

@@ -1,10 +1,13 @@
 package com.codlex.distributed.systems.homework1.peer;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.logging.log4j.core.util.FileUtils;
 
 import com.codlex.distributed.systems.homework1.bootstrap.BootstrapNode;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
@@ -98,8 +101,8 @@ public class VideoStreamingGui {
 		videoPlayer.getChildren().add(label);
 
 		this.mediaView = new MediaView();
-        mediaView.setFitHeight(500);
-        mediaView.setFitWidth(500);
+        this.mediaView.setFitHeight(500);
+        this.mediaView.setFitWidth(500);
 
         videoPlayer.getChildren().add(mediaView);
 
@@ -218,8 +221,12 @@ public class VideoStreamingGui {
 			public void handle(MouseEvent event) {
 				FileChooser fileChooser = new FileChooser();
 				fileChooser.setTitle("Open Video File");
-				filePath.textProperty().set(fileChooser.showOpenDialog(stage).getAbsolutePath());
-				fileChooser.setSelectedExtensionFilter(new ExtensionFilter("Video file."));
+
+				File file = fileChooser.showOpenDialog(stage);
+				if (file != null) {
+					nameField.textProperty().set(file.getName());
+					filePath.textProperty().set(file.getAbsolutePath());
+				}
 			}
 		});
 		name.getChildren().add(browseFileButton);
@@ -256,7 +263,7 @@ public class VideoStreamingGui {
 		log.debug("Started streaming {}", videoName);
 
 		KademliaId videoId = new KademliaId(IdType.Video, this.node.getRegion(), videoName);
-		new GetValueOperation(node, videoId).execute((targetNode, value) -> {
+		new GetValueOperation(node, videoId).execute(false, (targetNode, value) -> {
 			Platform.runLater(() -> {
 				log.debug("Target node:" + targetNode);
 				String URI = String.format("http://%s:%d/%s", targetNode.address, targetNode.streamingPort, URLEncoder.encode(videoId.toHex()));
@@ -387,7 +394,22 @@ public class VideoStreamingGui {
 		return topBar;
 	}
 
-	public static void main(String[] args) {
+	public static void deleteFolder(File folder) {
+	    File[] files = folder.listFiles();
+	    if(files!=null) { //some JVMs return null for empty dirs
+	        for(File f: files) {
+	            if(f.isDirectory()) {
+	                deleteFolder(f);
+	            } else {
+	                f.delete();
+	            }
+	        }
+	    }
+	    folder.delete();
+	}
+
+	public static void main(String[] args) throws IOException {
+		deleteFolder(new File("videos"));
 		new BootstrapNode(Settings.bootstrapNode);
 		for (int i = 1; i < 4; i++) {
 			new VideoStreamingGui(new Node(8100 + i, 8000 + i * 2));

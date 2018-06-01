@@ -1,9 +1,11 @@
 package com.codlex.distributed.systems.homework1.peer;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -88,7 +90,10 @@ public class Node {
 
 	private StreamingServer streamingServer;
 
+	private String videoDirectory;
+
 	public Node(int port, int streamingPort) {
+
 //		try {
 			this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), "localhost", port, streamingPort);
 //		} catch (UnknownHostException e) {
@@ -101,6 +106,8 @@ public class Node {
 		this.client = createClient();
 		this.routingTable = new RoutingTable(this.info);
 		this.streamingServer = new StreamingServer(this, streamingPort);
+		this.videoDirectory = "videos/" + this.info.id.toString() + "/";
+		new File(this.videoDirectory).mkdirs();
 	}
 
 	// TODO: call this
@@ -152,7 +159,11 @@ public class Node {
 			public GetValueResponse callback(GetValueRequest message) {
 				Node.this.routingTable.insert(message.getNode());
 				DHTEntry value = Node.this.dht.get(message.getLookupId());
+
 				if (value != null) {
+					if (!message.isGetData()) {
+						value = value.getWithoutData();
+					}
 					return new GetValueResponse(ImmutableList.of(), ValueContainer.pack(value));
 				} else {
 					return new GetValueResponse(Node.this.routingTable.findClosest(message.getLookupId(), Settings.K), null);
@@ -241,8 +252,8 @@ public class Node {
 	}
 
 
-	public void findValue(KademliaId key, BiConsumer<NodeInfo, DHTEntry> callback) {
-		new GetValueOperation(this, key).execute(callback);
+	public void findValue(KademliaId key, boolean getFullData, BiConsumer<NodeInfo, DHTEntry> callback) {
+		new GetValueOperation(this, key).execute(getFullData, callback);
 	}
 
 	public void search(String text, Consumer<List<String>> callback) {
@@ -252,7 +263,7 @@ public class Node {
 		final AtomicInteger expectedValues = new AtomicInteger(keywords.length);
 		for (String keyword : keywords) {
 			KademliaId key = new KademliaId(IdType.Keyword, this.region, keyword);
-			findValue(key, (node, value) -> {
+			findValue(key, false, (node, value) -> {
 				synchronized (results) {
 
 					log.debug("Found {} for {}", value, keyword);
@@ -316,5 +327,9 @@ public class Node {
 			log.debug("Decrementing number of streamers.");
 			this.currentStreamers.subtract(1);
 		});
+	}
+
+	public String getVideoDirectory() {
+		return this.videoDirectory;
 	}
 }

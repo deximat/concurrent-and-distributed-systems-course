@@ -40,11 +40,12 @@ public class GetValueOperation {
 		this.lookupId = lookupId;
 	}
 
-	public void execute(BiConsumer<NodeInfo, DHTEntry> callback) {
+	public void execute(final boolean getFullData, BiConsumer<NodeInfo, DHTEntry> callback) {
+
 		this.nodes.add(this.localNode.getInfo());
 
 		// TODO: check if all nodes are contacted then?
-		handleNodes(this.localNode.getRoutingTable().getAllNodes(), callback);
+		handleNodes(getFullData, this.localNode.getRoutingTable().getAllNodes(), callback);
 
 
 		// TODO: do with timeout effort
@@ -52,7 +53,7 @@ public class GetValueOperation {
 	}
 
 	// TODO: SEEMS LIKE INFINITE LOOP CHECK THIS (RECURSIVE)
-	private void handleNodes(List<NodeInfo> nodes, BiConsumer<NodeInfo, DHTEntry> callback) {
+	private void handleNodes(boolean getFullData, List<NodeInfo> nodes, BiConsumer<NodeInfo, DHTEntry> callback) {
 		// System.out.println("Number of nodes received: " + nodes.size());
 		synchronized (this.nodes) {
 			for (final NodeInfo info : new ArrayList<>(nodes)) {
@@ -64,7 +65,7 @@ public class GetValueOperation {
 				this.nodes.add(info);
 				if (!this.asked.contains(info)) {
 					this.localNode.sendMessage(info, Messages.Get,
-							new GetValueRequest(this.localNode.getInfo(), this.lookupId), (response) -> {
+							new GetValueRequest(this.localNode.getInfo(), this.lookupId, getFullData), (response) -> {
 
 								if (this.valueFound.get()) {
 									return;
@@ -77,7 +78,7 @@ public class GetValueOperation {
 								}
 								this.asked.add(info); // TODO: should we do this before sending message?
 								this.localNode.getRoutingTable().insert(info);
-								handleNodes(response.getNodes(), callback);
+								handleNodes(getFullData, response.getNodes(), callback);
 
 							}, GetValueResponse.class);
 				}

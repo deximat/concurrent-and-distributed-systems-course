@@ -77,6 +77,9 @@ public class DHT {
 			store(entry, (closestNodes) -> {
 				if (!closestNodes.contains(this.localNode.getInfo())) {
 					this.table.remove(entry.getId());
+					if (entry instanceof Video) {
+						((Video) entry).delete();
+					}
 					log.debug("I'm no longer closest to {}, removing {}", entry.getId(), entry);
 				}
 			});
@@ -97,15 +100,12 @@ public class DHT {
 			Video video = value.getVideoValue();
 			Video oldVideo = (Video) this.table.get(video.getId());
 			Video toStoreVideo = Video.merge(video, oldVideo);
+			if (oldVideo != null) {
+				oldVideo.delete();
+			}
 			this.table.remove(toStoreVideo.getId());
 			this.table.put(toStoreVideo.getId(), toStoreVideo);
-			// save file
-			try {
-				Files.write(video.getVideoData(), new File("videos/", video.getId().getData()));
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			toStoreVideo.save(this.localNode.getVideoDirectory());
 			break;
 		default:
 			throw new RuntimeException("Not implemented yet.");

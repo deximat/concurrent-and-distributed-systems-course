@@ -12,4 +12,9 @@ import lombok.Getter;
 @Getter
 public abstract class DHTEntry {
 	protected KademliaId id;
+
+	public DHTEntry getWithoutData() {
+		// default implementation does nothing.
+		return this;
+	}
 }

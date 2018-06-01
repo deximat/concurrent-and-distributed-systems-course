@@ -42,9 +42,10 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 			throws Exception {
 		final KademliaId videoId = getVideoId(request);
 		String fileName = this.node.getVideoForStreaming(videoId);
+
 		log.debug("Streaming started: {}", fileName);
 
-		File file = new File("videos/", fileName);
+		File file = new File(this.node.getVideoDirectory(), fileName);
 		if (file.isHidden() || !file.exists()) {
 			System.err.println("NOT_FOUND");
 			return;
