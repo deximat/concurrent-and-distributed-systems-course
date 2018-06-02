@@ -28,7 +28,6 @@ public final class JavaProcess {
         ProcessBuilder builder = new ProcessBuilder(argsAll);
 
         Process process = builder.start();
-
         return process;
     }
 

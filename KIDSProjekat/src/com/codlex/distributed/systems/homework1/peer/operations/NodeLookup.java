@@ -33,12 +33,12 @@ public class NodeLookup {
 	private final Set<NodeInfo> nodes = new HashSet<>();
 	private final Set<NodeInfo> asked = new HashSet<>();
 	private final KademliaId lookupId;
+	private final Consumer<List<NodeInfo>> callback;
 
 	private ScheduledFuture<?> timeoutFuture;
 
-	private Consumer<List<NodeInfo>> callback;
-
-	private static final ScheduledExecutorService SCHEDULER = (ScheduledExecutorService) Executors.newSingleThreadScheduledExecutor();
+	private static final ScheduledExecutorService SCHEDULER = (ScheduledExecutorService) Executors
+			.newSingleThreadScheduledExecutor();
 
 	public NodeLookup(Node localNode, KademliaId lookupId, Consumer<List<NodeInfo>> callback) {
 		this.localNode = localNode;
@@ -46,47 +46,50 @@ public class NodeLookup {
 		this.callback = callback;
 	}
 
-	private void processTimeout() {
-		log.debug("Lookup timeouted.");
-		this.callback.accept(ImmutableList.of());
+	private synchronized void processTimeout() {
+		log.trace("Node Lookup timeouted");
+		this.callback.accept(getClosestNodes());
 	}
 
-	public void execute() {
+	public synchronized void execute() {
 
-		this.timeoutFuture = SCHEDULER.schedule(this::processTimeout, 5, TimeUnit.SECONDS);
-		log.debug("Scheduled timeout.");
+		// SIMPLE TIMEOUT
+		this.timeoutFuture = SCHEDULER.schedule(this::processTimeout, 2, TimeUnit.SECONDS);
 
 		this.nodes.add(this.localNode.getInfo());
 		this.asked.add(this.localNode.getInfo());
 
-		handleNodes(this.localNode.getRoutingTable().getAllNodes(), callback);
-
+		handleNodes(this.localNode.getRoutingTable().getAllNodes());
 
 		// TODO: [FAILURES] do with timeout effort
 		// this.localNode.getRoutingTable().setUnresponsiveContacts(this.getFailedNodes());
 	}
 
-	private void handleNodes(List<NodeInfo> nodes, Consumer<List<NodeInfo>> callback) {
-		synchronized (this.nodes) {
+	private void handleNodes(List<NodeInfo> nodes) {
+		// if (nodes.isEmpty()) {
+		// log.debug("No nodes to query, returning emptr. ", this.lookupId,
+		// getClosestNodes());
+		// this.timeoutFuture.cancel(false);
+		// callback.accept(ImmutableList.of());
+		// }
 
-			for (final NodeInfo info : new ArrayList<>(nodes)) {
-				this.nodes.add(info);
-				if (!this.asked.contains(info)) {
-					this.localNode.sendMessage(info, Messages.FindNodes,
-							new FindNodesRequest(this.localNode.getInfo(), this.lookupId), (response) -> {
-								this.asked.add(info); // TODO: should we do this before sending message?
-								this.localNode.getRoutingTable().insert(info);
-								handleNodes(response.getNodes(), callback);
-							}, FindNodesResponse.class);
-				}
+		for (final NodeInfo info : new ArrayList<>(nodes)) {
+			this.nodes.add(info);
+			if (!this.asked.contains(info)) {
+				this.localNode.sendMessage(info, Messages.FindNodes,
+						new FindNodesRequest(this.localNode.getInfo(), this.lookupId), (response) -> {
+							this.asked.add(info); // TODO: should we do this
+													// before sending message?
+							handleNodes(response.getNodes());
+						}, FindNodesResponse.class);
 			}
+		}
 
-
-			if (isFinished()) {
-				log.debug("Finished getting closest nodes to: {}, nodes: {}. ", this.lookupId, getClosestNodes());
-				this.timeoutFuture.cancel(false);
-				callback.accept(getClosestNodes());
-			}
+		if (isFinished()) {
+			log.trace("Finished getting closest nodes to: {}, nodes: {}. ", this.lookupId.toHexShort(),
+					getClosestNodes());
+			this.timeoutFuture.cancel(false);
+			this.callback.accept(getClosestNodes());
 		}
 	}
 
@@ -100,10 +103,9 @@ public class NodeLookup {
 		return nodes.size() >= Settings.K;
 	}
 
-	public List<NodeInfo> getClosestNodes() {
-		synchronized (this.nodes) {
-			return this.nodes.stream().sorted(new KeyComparator(this.lookupId)).limit(Settings.K)
-					.collect(Collectors.toList());
-		}
+	public synchronized List<NodeInfo> getClosestNodes() {
+		return this.nodes.stream().sorted(new KeyComparator(this.lookupId)).limit(Settings.K)
+				.collect(Collectors.toList());
+
 	}
 }

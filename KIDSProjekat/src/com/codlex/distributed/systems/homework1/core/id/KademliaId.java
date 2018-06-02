@@ -15,18 +15,17 @@ import lombok.EqualsAndHashCode;
 import lombok.val;
 import lombok.extern.slf4j.Slf4j;
 
-@EqualsAndHashCode
+@EqualsAndHashCode(of = {"bytes"})
 @Slf4j
 public class KademliaId implements Serializable {
 
 	public final static int ID_LENGTH = 120;
+	public static final int ID_LENGTH_BITS = ID_LENGTH * 8;
 	public final static int ID_LENGTH_TYPE = 2;
 	public final static int ID_LENGTH_REGION = 8;
 	public final static int ID_LENGTH_DATA = ID_LENGTH - ID_LENGTH_REGION - ID_LENGTH_TYPE;
 
 	private static final Charset CHARSET = Charset.forName("UTF-8");
-
-	private static final int ID_LENGTH_BITS = ID_LENGTH * 8;
 
 	private final byte[] bytes;
 
@@ -212,9 +211,9 @@ public class KademliaId implements Serializable {
 
 		// test for correctness of id generation and distance
 		for (int distance = 1; distance < ID_LENGTH_BITS; distance++) {
-			val baseNode = new KademliaId(IdType.Node, Region.Serbia);
+			val baseNode = new KademliaId(IdType.Node, Region.Europe);
 			val generatedNode = baseNode.generateNodeIdByDistance(distance);
-			//System.out.println(baseNode.getDistance(generatedNode));
+			System.out.println(baseNode.getDistance(generatedNode));
 			if (baseNode.getDistance(generatedNode) != distance) {
 				System.out.println("ERROR: " + baseNode.getDistance(generatedNode) + " expected: " + distance);
 			}

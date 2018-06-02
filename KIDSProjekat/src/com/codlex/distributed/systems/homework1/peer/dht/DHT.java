@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
@@ -24,6 +25,7 @@ import com.codlex.distributed.systems.homework1.peer.operations.NodeLookup;
 import com.google.common.base.Objects;
 import com.google.common.io.Files;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import lombok.AllArgsConstructor;
@@ -33,7 +35,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@ToString(of = { "table" }, includeFieldNames = false)
+@ToString(of = { "table" })
 public class DHT {
 
 	public DHT(Node localNode) {
@@ -43,10 +45,12 @@ public class DHT {
 	private final Node localNode;
 
 	@Getter
-	private final ObservableMap<KademliaId, DHTEntry> table = FXCollections.synchronizedObservableMap(FXCollections.observableMap(new HashMap<>()));
+	private final ObservableMap<KademliaId, DHTEntry> table = FXCollections
+			.synchronizedObservableMap(FXCollections.observableMap(new HashMap<>()));
 
 	public void store(DHTEntry value) {
-		store(value, (nodesStoredOn) -> {});
+		store(value, (nodesStoredOn) -> {
+		});
 	}
 
 	public void store(DHTEntry value, Consumer<List<NodeInfo>> onStoredCallback) {
@@ -54,11 +58,10 @@ public class DHT {
 			for (NodeInfo node : closestNodes) {
 				this.localNode.sendMessage(node, Messages.Store,
 						new StoreValueRequest(this.localNode.getInfo(), ValueContainer.pack(value)), (response) -> {
+							onStoredCallback.accept(closestNodes);
 							log.debug("Stored value: {} at {}", value, node);
 						}, StoreValueResponse.class);
 			}
-
-			onStoredCallback.accept(closestNodes);
 		}).execute();
 	}
 
@@ -72,7 +75,15 @@ public class DHT {
 	}
 
 	public void refresh() {
-		log.debug("Refreshing DHT entries on {}", this.localNode);
+		long startTime = System.currentTimeMillis();
+		log.debug("{} refreshing DHT entries", this.localNode.getInfo());
+
+		final Runnable finishCallback = () -> {
+			log.debug("{} finished refreshing DHT entries in {}ms.", this.localNode.getInfo(),
+					System.currentTimeMillis() - startTime);
+		};
+
+		final AtomicInteger expectedCount = new AtomicInteger(this.table.values().size() + 1);
 		for (DHTEntry entry : this.table.values()) {
 			store(entry, (closestNodes) -> {
 				if (!closestNodes.contains(this.localNode.getInfo())) {
@@ -82,7 +93,15 @@ public class DHT {
 					}
 					log.debug("Removing {} from {}", entry, this.localNode);
 				}
+
+				if (expectedCount.decrementAndGet() == 0) {
+					finishCallback.run();
+				}
 			});
+		}
+
+		if (expectedCount.decrementAndGet() == 0) {
+			finishCallback.run();
 		}
 	}
 
@@ -110,6 +129,5 @@ public class DHT {
 		default:
 			throw new RuntimeException("Not implemented yet.");
 		}
-
 	}
 }

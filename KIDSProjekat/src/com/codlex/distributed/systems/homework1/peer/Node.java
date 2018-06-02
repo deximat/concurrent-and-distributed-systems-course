@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -62,7 +63,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@ToString(of = { "info" })
+@ToString(of={"info"}, includeFieldNames = false)
 public class Node {
 
 	@Getter
@@ -71,8 +72,8 @@ public class Node {
 	@Getter
 	private NodeInfo info;
 
-	private final HttpServer server;
-	private final HttpClient client;
+	private HttpServer server;
+	private HttpClient client;
 
 	@Getter
 	private RoutingTable routingTable;
@@ -86,14 +87,27 @@ public class Node {
 	private final DHT dht = new DHT(this);
 
 	@Getter
-	private Region region = Region.Serbia;
+	private Region region = Region.Europe;
 
 	private StreamingServer streamingServer;
 
 	private String videoDirectory;
 
+	private int port;
+	private int streamingPort;
+
+	@Getter
+	private AtomicBoolean inited = new AtomicBoolean();
+
 	public Node(int port, int streamingPort) {
-		this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), HostGetter.getUnsafe(), port, streamingPort);
+		this.port = port;
+		this.streamingPort = streamingPort;
+	}
+
+
+	public void init() {
+		this.inited.set(true);
+		this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), HostGetter.getUnsafe(), this.port, this.streamingPort);
 		this.server = createServer();
 		this.client = createClient();
 		this.routingTable = new RoutingTable(this.info);
@@ -102,21 +116,22 @@ public class Node {
 	}
 
 	public void onBootstrapFinished() {
-		SCHEDULER.scheduleWithFixedDelay(this::refresh, 0, Settings.refreshInterval, TimeUnit.MILLISECONDS);
+		SCHEDULER.scheduleWithFixedDelay(this::refresh, 0, Settings.REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
 	}
 
 	public <Response extends Serializable> void sendMessage(final NodeInfo info, Messages messageType,
 			Serializable message, Consumer<Response> callback, Class<Response> responseClass) {
-		setTask("SENT " + messageType.getAddress());
 
-		log.debug("{} -> {} says {}", this.info, info, messageType.getAddress());
+		// setTask("SENT " + messageType.getAddress());
+
+		log.trace("{} -> {} says {}", this.info, info, messageType.getAddress());
 
 		this.client.post(info.port, info.address, messageType.getAddress(), (response) -> {
 			response.bodyHandler((body) -> {
+				log.trace("{} <- {} says {}", this.info, info, messageType.getAddress());
 				this.routingTable.insert(info);
-				log.debug("{} <- {} says {}", this.info, info, messageType.getAddress());
 				callback.accept(new Gson().fromJson(body.toString(), responseClass));
-				setTask("CONNECTED IDLE");
+				// setTask("CONNECTED IDLE");
 
 			});
 		}).end(new Gson().toJson(message));
@@ -188,11 +203,16 @@ public class Node {
 		return server;
 	}
 
-	public final void bootstrap() {
-		log.debug("{} contacting bootstrap server.", this.info);
-		sendMessage(Settings.bootstrapNode, Messages.Join, new JoinRequest(this.info), (response) -> {
-			bootstrap(response.getBootstrapNode());
-		}, JoinResponse.class);
+	public final void bootstrap(Runnable callback) {
+		// JavaFX can't create socket, so just run on any thread.
+		SCHEDULER.schedule(() -> {
+			init();
+			log.debug("{} contacting bootstrap server.", this.info);
+			sendMessage(Settings.bootstrapNode, Messages.Join, new JoinRequest(this.info), (response) -> {
+				bootstrap(response.getBootstrapNode());
+			}, JoinResponse.class);
+			callback.run();
+		}, 0, TimeUnit.MILLISECONDS);
 	}
 
 	public synchronized final void bootstrap(NodeInfo node) {
@@ -226,20 +246,25 @@ public class Node {
 		});
 	}
 
-	private void refreshBuckets(Runnable onBucketsRefreshed) {
+	private void refreshBuckets(Runnable callback) {
 		log.debug("{} started refreshing buckets", this.info);
-		AtomicInteger expectedExecutes = new AtomicInteger(KademliaId.ID_LENGTH);
-		for (int i = 1; i < KademliaId.ID_LENGTH; i++) {
-			log.debug("Generating id.");
+		long startTime = System.currentTimeMillis();
+
+		AtomicInteger expectedExecutes = new AtomicInteger(KademliaId.ID_LENGTH_BITS);
+		for (int i = 1; i < KademliaId.ID_LENGTH_BITS; i++) {
 			final KademliaId current = this.info.getId().generateNodeIdByDistance(i);
-			log.debug("Generated id.");
 
 			new NodeLookup(this, current, (nodes) -> {
 				if (expectedExecutes.decrementAndGet() == 0) {
-					onBucketsRefreshed.run();
-					log.debug("{} finished refreshing buckets", this.info, nodes.size());
+					log.debug("{} finished refreshing buckets in {}ms.", this.info, System.currentTimeMillis() - startTime);
+					callback.run();
 				}
 			}).execute();
+		}
+
+		if (expectedExecutes.decrementAndGet() == 0) {
+			log.debug("{} finished refreshing buckets in {}ms.", this.info, System.currentTimeMillis() - startTime);
+			callback.run();
 		}
 
 		// OPTIMIZATION: To avoid redundant store RPCs for the same content from
@@ -249,15 +274,9 @@ public class Node {
 		// IDs of other nodes.
 	}
 
-	public String toString() {
-		return this.info.getId().toString();
-	}
 
 	public void setRegion(Region region) {
 		this.region = region;
-		this.info = new NodeInfo(new KademliaId(IdType.Node, region), this.info.address, this.info.port,
-				this.info.streamingPort);
-		createFolderForVideos();
 	}
 
 	private void createFolderForVideos() {
@@ -309,7 +328,7 @@ public class Node {
 
 	public void uploadVideo(String name, byte[] videoData, Consumer<Object> callback) {
 		// we need to make instance per region
-		for (Region region : Region.values()) {
+		for (Region region : Region.realValues()) {
 			for (String keyword : name.split(" ")) {
 				Keyword keywordObject = new Keyword(new KademliaId(IdType.Keyword, region, keyword.trim()),
 						ImmutableSet.of(name));

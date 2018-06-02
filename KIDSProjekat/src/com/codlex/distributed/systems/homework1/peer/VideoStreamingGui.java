@@ -1,25 +1,17 @@
 package com.codlex.distributed.systems.homework1.peer;
 
-import java.awt.ScrollPane;
 import java.io.File;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.logging.log4j.core.util.FileUtils;
-
-import com.codlex.distributed.systems.homework1.bootstrap.BootstrapNode;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
 import com.codlex.distributed.systems.homework1.starter.Log4jConfigurator;
-import com.google.common.collect.Lists;
-import com.sun.prism.paint.Color;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -47,7 +39,6 @@ import javafx.scene.media.MediaView;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.util.Callback;
 import lombok.val;
 import lombok.extern.slf4j.Slf4j;
@@ -84,7 +75,6 @@ public class VideoStreamingGui {
 			everything.getChildren().add(buildConnectBar());
 			everything.getChildren().add(buildMainPanel());
 			this.stage.setScene(new Scene(everything));
-			this.stage.setTitle(this.node.getInfo().toString());
 			this.stage.show();
 		});
 	}
@@ -192,12 +182,15 @@ public class VideoStreamingGui {
 		pane.setPrefHeight(250);
 		this.node.SCHEDULER.scheduleAtFixedRate(() -> {
 			Platform.runLater(() -> {
+				if (!this.node.getInited().get()) {
+					return;
+				}
 				Label text = new Label();
 				text.setText(this.node.getRoutingTable().toString());
 				text.setPrefWidth(500);
 				pane.setContent(text);
 			});
-		}, 0, 30, TimeUnit.SECONDS);
+		}, 0, Settings.REFRESH_BUCKETS_VIEW, TimeUnit.SECONDS);
 		return pane;
 	}
 
@@ -396,7 +389,6 @@ public class VideoStreamingGui {
 		ChoiceBox<Region> regions = new ChoiceBox<Region>(FXCollections.observableArrayList(Region.values()));
 		regions.getSelectionModel().selectedItemProperty().addListener((object, oldValue, newValue) -> {
 			this.node.setRegion(newValue);
-			this.stage.setTitle(this.node.getInfo().toString());
 		});
 		regions.getSelectionModel().selectFirst();
 
@@ -405,7 +397,11 @@ public class VideoStreamingGui {
 		connectButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
 			@Override
 			public void handle(MouseEvent e) {
-				VideoStreamingGui.this.node.bootstrap();
+				VideoStreamingGui.this.node.bootstrap(() -> {
+					Platform.runLater(() -> {
+						VideoStreamingGui.this.stage.setTitle(VideoStreamingGui.this.node.toString());
+					});
+				});
 				topBar.setDisable(true);
 			}
 		});
@@ -423,7 +419,8 @@ public class VideoStreamingGui {
 		Integer streamingPort = Integer.parseInt(args[1]);
 		Log4jConfigurator.configure(String.format("bootstrap-%d-%d.log", port, streamingPort));
 		log.debug("Started VideoStreamingGui(port = {}, streamingPort = {})", port, streamingPort);
-		new VideoStreamingGui(new Node(port, streamingPort));
+		val node = new Node(port, streamingPort);
+		new VideoStreamingGui(node);
 	}
 
 }

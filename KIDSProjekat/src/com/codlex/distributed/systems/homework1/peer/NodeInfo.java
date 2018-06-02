@@ -14,12 +14,11 @@ public class NodeInfo {
 	public KademliaId id;
 
 	public String address;
-
 	public int port;
 	public int streamingPort;
 
 	public String toString() {
-		return "[" + id.toHexShort() + "]";
+		return "[" + this.id.toHexShort() + "]";
 	}
 
 }

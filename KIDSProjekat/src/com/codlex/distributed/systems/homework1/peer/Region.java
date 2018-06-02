@@ -1,9 +1,13 @@
 package com.codlex.distributed.systems.homework1.peer;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 
 public enum Region {
-	Serbia, Tokio, America, RestOfEurope, Unknown;
+
+	Europe, America, Asia, Unknown;
 
 	public String getCode() {
 		StringBuilder builder = new StringBuilder();
@@ -13,5 +17,17 @@ public enum Region {
 		}
 
 		return builder.toString();
+	}
+
+	public static List<Region> realValues() {
+		List<Region> values = new ArrayList<>();
+
+		for (Region region : values()) {
+			if (region != Unknown) {
+				values.add(region);
+			}
+		}
+
+		return values;
 	}
 }
