@@ -79,20 +79,19 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 			@Override
 			public void operationProgressed(ChannelProgressiveFuture future,long progress, long total) {
 				if (total < 0) {
-					System.err.println(future.channel()+" Transfer progress: " + progress);
+					log.debug(future.channel() + " Transfer progress: " + progress);
 				} else {
-					System.err.println(future.channel()+" Transfer progress: " + progress + " / " + total);
+					log.debug(future.channel() + " Transfer progress: " + progress + " / " + total);
 				}
 			}
 			@Override
 			public void operationComplete(ChannelProgressiveFuture future) {
-				System.err.println(future.channel() + " Transfer complete.");
+				log.debug(future.channel() + " Transfer complete.");
 				ServerHandler.this.node.onVideoStreamingEnd();
 				try {
 					randomAccessFile.close();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					log.error("Error occured while closing file.", e);
 				}
 			}
 		});

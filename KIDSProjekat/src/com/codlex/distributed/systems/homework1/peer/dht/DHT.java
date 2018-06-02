@@ -50,7 +50,7 @@ public class DHT {
 	}
 
 	public void store(DHTEntry value, Consumer<List<NodeInfo>> onStoredCallback) {
-		new NodeLookup(this.localNode, value.getId()).execute((closestNodes) -> {
+		new NodeLookup(this.localNode, value.getId(), (closestNodes) -> {
 			for (NodeInfo node : closestNodes) {
 				this.localNode.sendMessage(node, Messages.Store,
 						new StoreValueRequest(this.localNode.getInfo(), ValueContainer.pack(value)), (response) -> {
@@ -59,7 +59,7 @@ public class DHT {
 			}
 
 			onStoredCallback.accept(closestNodes);
-		});
+		}).execute();
 	}
 
 	public synchronized DHTEntry get(KademliaId key) {
@@ -72,7 +72,7 @@ public class DHT {
 	}
 
 	public void refresh() {
-		log.debug("Started refresh of DHT.");
+		log.debug("Refreshing DHT entries on {}", this.localNode);
 		for (DHTEntry entry : this.table.values()) {
 			store(entry, (closestNodes) -> {
 				if (!closestNodes.contains(this.localNode.getInfo())) {
@@ -80,7 +80,7 @@ public class DHT {
 					if (entry instanceof Video) {
 						((Video) entry).delete();
 					}
-					log.debug("I'm no longer closest to {}, removing {}", entry.getId(), entry);
+					log.debug("Removing {} from {}", entry, this.localNode);
 				}
 			});
 		}

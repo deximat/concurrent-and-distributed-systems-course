@@ -5,9 +5,7 @@ import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.ToString;
 
-@ToString
 @AllArgsConstructor
 @EqualsAndHashCode(of={"id"})
 public class NodeInfo {
@@ -19,5 +17,9 @@ public class NodeInfo {
 
 	public int port;
 	public int streamingPort;
+
+	public String toString() {
+		return "[" + id.toHexShort() + "]";
+	}
 
 }

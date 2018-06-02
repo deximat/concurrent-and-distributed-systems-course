@@ -26,7 +26,6 @@ public class BootstrapNode {
 	public BootstrapNode(final NodeInfo info) {
 		this.nodeInfo = info;
 		this.server = createServer(info.port);
-		log.debug("Started bootstrap on port: {} ", info.port);
 	}
 
 	private HttpServer createServer(int port) {
@@ -35,7 +34,7 @@ public class BootstrapNode {
 		router.route(HttpMethod.POST, "/join")
 				.handler(new JsonHandler<JoinRequest, JoinResponse>(JoinRequest.class) {
 					public JoinResponse callback(JoinRequest message) {
-						log.debug("Join executed for " + message.getInfo() + " giving him bootstrap node: " + bootstrapNode.get());
+						log.debug(message.getInfo() + " hello there, node for you: " + bootstrapNode.get());
 						// set if null
 						bootstrapNode.compareAndSet(null, message.getInfo());
 						return new JoinResponse(BootstrapNode.this.bootstrapNode.get());
@@ -50,6 +49,7 @@ public class BootstrapNode {
 
 	public static void main(String[] args) {
 		Log4jConfigurator.configure("bootstrap.log");
+		log.debug("######### Starting bootstrap on port: {} ", Settings.bootstrapNode.port);
 		new BootstrapNode(Settings.bootstrapNode);
 	}
 

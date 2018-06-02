@@ -4,21 +4,19 @@ import com.codlex.distributed.systems.homework1.peer.Node;
 import com.codlex.distributed.systems.homework1.peer.NodeInfo;
 import com.google.common.collect.ComparisonChain;
 
-
+// TODO: [REWRITE]
 public class Connection implements Comparable<Connection> {
-
 
 	public class Contact {
 		public Node getNode() {
 			throw new RuntimeException("Not implemented yet.");
 		};
-
 	}
 
 	private final NodeInfo node;
 	private long lastSeen;
 
-	// TODO: create something like soft/hard death
+	// TODO: [FAILURES] create something like soft/hard death
 	private int staleCount;
 
 	public Connection(NodeInfo node) {
@@ -48,7 +46,7 @@ public class Connection implements Comparable<Connection> {
 			return 0;
 		}
 
-		// TODO: check if this is ok ordering
+		// TODO: [REWRITE] check if this is ok ordering
 		return ComparisonChain.start().compare(this.lastSeen, o.lastSeen).result();
 	}
 

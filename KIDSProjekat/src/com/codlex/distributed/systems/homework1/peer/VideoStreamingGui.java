@@ -1,10 +1,13 @@
 package com.codlex.distributed.systems.homework1.peer;
 
+import java.awt.ScrollPane;
 import java.io.File;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.logging.log4j.core.util.FileUtils;
@@ -16,6 +19,7 @@ import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
 import com.codlex.distributed.systems.homework1.starter.Log4jConfigurator;
 import com.google.common.collect.Lists;
+import com.sun.prism.paint.Color;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -45,6 +49,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.util.Callback;
+import lombok.val;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -106,25 +111,24 @@ public class VideoStreamingGui {
 		this.mediaView = new MediaView();
         this.mediaView.setFitHeight(200);
         this.mediaView.setFitWidth(500);
-
-
         videoPlayer.getChildren().add(mediaView);
 
-		videoPlayer.getChildren().add(new Label("Current streamers count: "));
-
-		Label streamersCount = new Label();
-		streamersCount.textProperty().bind(this.node.getCurrentStreamers().asString());
-		videoPlayer.getChildren().add(streamersCount);
 		videoPlayer.getChildren().add(buildDebugger());
 
 		return videoPlayer;
 	}
 
 	private javafx.scene.Node buildDebugger() {
+
 		VBox container = new VBox();
+		container.getChildren().add(buildDHTContent());
+		container.getChildren().add(buildConnectionsTable());
 
-		container.getChildren().add(new Label("Local DHT:"));
+		return container;
+	}
 
+
+	private javafx.scene.Node buildDHTContent() {
 		ObservableList<DHTEntry> listOfItems = FXCollections.observableArrayList();
 
 		this.node.getDht().getTable().addListener(new MapChangeListener<KademliaId, DHTEntry>() {
@@ -177,13 +181,24 @@ public class VideoStreamingGui {
 		TableColumn<String, String> column = new TableColumn<>();
 		column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
 
-		table.getColumns().add(column1);
-		table.getColumns().add(column2);
-		table.getColumns().add(column3);
+		table.getColumns().addAll(column1, column2, column3);
+		table.setPrefHeight(250);
 
-		container.getChildren().add(table);
+		return table;
+	}
 
-		return container;
+	private javafx.scene.Node buildConnectionsTable() {
+		val pane = new javafx.scene.control.ScrollPane();
+		pane.setPrefHeight(250);
+		this.node.SCHEDULER.scheduleAtFixedRate(() -> {
+			Platform.runLater(() -> {
+				Label text = new Label();
+				text.setText(this.node.getRoutingTable().toString());
+				text.setPrefWidth(500);
+				pane.setContent(text);
+			});
+		}, 0, 30, TimeUnit.SECONDS);
+		return pane;
 	}
 
 	private javafx.scene.Node buildSearchAndUpload() {
@@ -407,6 +422,7 @@ public class VideoStreamingGui {
 		Integer port = Integer.parseInt(args[0]);
 		Integer streamingPort = Integer.parseInt(args[1]);
 		Log4jConfigurator.configure(String.format("bootstrap-%d-%d.log", port, streamingPort));
+		log.debug("Started VideoStreamingGui(port = {}, streamingPort = {})", port, streamingPort);
 		new VideoStreamingGui(new Node(port, streamingPort));
 	}
 

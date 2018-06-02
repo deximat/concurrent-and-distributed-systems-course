@@ -12,16 +12,21 @@ import com.codlex.distributed.systems.homework1.peer.Region;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 
 import lombok.EqualsAndHashCode;
+import lombok.val;
 import lombok.extern.slf4j.Slf4j;
 
 @EqualsAndHashCode
 @Slf4j
 public class KademliaId implements Serializable {
 
-	public final static int ID_LENGTH = 409;
+	public final static int ID_LENGTH = 120;
 	public final static int ID_LENGTH_TYPE = 2;
 	public final static int ID_LENGTH_REGION = 8;
 	public final static int ID_LENGTH_DATA = ID_LENGTH - ID_LENGTH_REGION - ID_LENGTH_TYPE;
+
+	private static final Charset CHARSET = Charset.forName("UTF-8");
+
+	private static final int ID_LENGTH_BITS = ID_LENGTH * 8;
 
 	private final byte[] bytes;
 
@@ -34,7 +39,7 @@ public class KademliaId implements Serializable {
 	}
 
 	public KademliaId(IdType type, final Region region) {
-		this(type, region, RandomStringUtils.random(ID_LENGTH_DATA / 8, true, true));
+		this(type, region, RandomStringUtils.random(ID_LENGTH_DATA, true, true));
 	}
 
 	public BigInteger toBigInt() {
@@ -49,7 +54,7 @@ public class KademliaId implements Serializable {
 	private static String fillUp(String data) {
 		final StringBuilder builder = new StringBuilder();
 		builder.append(data);
-		for (int i = 0; i < ID_LENGTH_DATA / 8 - data.length(); i++) {
+		for (int i = 0; i < ID_LENGTH_DATA - data.length(); i++) {
 			builder.append(" ");
 		}
 		return builder.toString();
@@ -61,14 +66,14 @@ public class KademliaId implements Serializable {
 		builder.append(region.getCode());
 		builder.append(fillUp(data));
 		// log.debug(builder.toString() + " size: " + builder.length());
-		return builder.toString().getBytes(Charset.forName("UTF-8"));
+		return builder.toString().getBytes(CHARSET);
 	}
 
 	public KademliaId xor(KademliaId nid) {
-		byte[] result = new byte[ID_LENGTH / 8];
+		byte[] result = new byte[ID_LENGTH];
 		byte[] nidBytes = nid.getBytes();
 
-		for (int i = 0; i < ID_LENGTH / 8; i++) {
+		for (int i = 0; i < ID_LENGTH; i++) {
 			result[i] = (byte) (this.bytes[i] ^ nidBytes[i]);
 		}
 
@@ -76,34 +81,43 @@ public class KademliaId implements Serializable {
 	}
 
 	public KademliaId generateNodeIdByDistance(int distance) {
-		byte[] result = new byte[ID_LENGTH / 8];
+		byte[] result = new byte[ID_LENGTH];
 
 		/*
 		 * Since distance = ID_LENGTH - prefixLength, we need to fill that
 		 * amount with 0's
 		 */
-		int numByteZeroes = (ID_LENGTH - distance) / 8;
-		int numBitZeroes = 8 - (distance % 8);
+		int numByteZeroes = ID_LENGTH - (distance / 8);
+		int numBitZeroes = distance % 8;
+		if (numBitZeroes > 0) {
+			numByteZeroes--;
+		}
 
-		/* Filling byte zeroes */
+		int allOnesFrom = numByteZeroes;
+
 		for (int i = 0; i < numByteZeroes; i++) {
 			result[i] = 0;
 		}
 
-		/* Filling bit zeroes */
-		BitSet bits = new BitSet(8);
-		bits.set(0, 8);
+		if (numBitZeroes != 0) {
+			BitSet bits = new BitSet(8);
+			bits.set(0, 8);
+			for (int i = 0; i < numBitZeroes; i++) {
+				bits.clear(i);
+			}
+			bits.flip(0, 8);
 
-		for (int i = 0; i < numBitZeroes; i++) {
-			/* Shift 1 zero into the start of the value */
-			bits.clear(i);
+			if (numByteZeroes < result.length) {
+				result[numByteZeroes] = bits.toByteArray()[0];
+			}
+
+			allOnesFrom++;
 		}
-		bits.flip(0, 8); // Flip the bits since they're in reverse order
-		result[numByteZeroes] = (byte) bits.toByteArray()[0];
 
-		/* Set the remaining bytes to Maximum value */
-		for (int i = numByteZeroes + 1; i < result.length; i++) {
-			result[i] = Byte.MAX_VALUE;
+		BitSet allOnes = new BitSet(8);
+		allOnes.set(0, 8);
+		for (int i = allOnesFrom; i < result.length; i++) {
+			result[i] = allOnes.toByteArray()[0];
 		}
 
 		return this.xor(new KademliaId(result));
@@ -139,7 +153,7 @@ public class KademliaId implements Serializable {
 	}
 
 	public int getDistance(KademliaId to) {
-		return ID_LENGTH - this.xor(to).getFirstSetBitIndex();
+		return ID_LENGTH_BITS - this.xor(to).getFirstSetBitIndex();
 	}
 
 	@Override
@@ -150,7 +164,8 @@ public class KademliaId implements Serializable {
 		builder.append(", region = ");
 		builder.append(getRegion());
 		builder.append(", data = ");
-		builder.append(getData().trim());
+		// shorted data to be more readable
+		builder.append(getData().trim().subSequence(0, Math.min(getData().length(), 5)));
 		builder.append(")");
 		return builder.toString();
 	}
@@ -189,7 +204,22 @@ public class KademliaId implements Serializable {
 		return new String(this.bytes);
 	}
 
-	public static void main(String[] args) {
-		System.out.println(new KademliaId(IdType.Keyword, Region.America, "bld"));
+	public String toHexShort() {
+		return new String(this.bytes).substring(0, 15).toUpperCase();
+	}
+
+	public static void main(String[] bla) {
+
+		// test for correctness of id generation and distance
+		for (int distance = 1; distance < ID_LENGTH_BITS; distance++) {
+			val baseNode = new KademliaId(IdType.Node, Region.Serbia);
+			val generatedNode = baseNode.generateNodeIdByDistance(distance);
+			//System.out.println(baseNode.getDistance(generatedNode));
+			if (baseNode.getDistance(generatedNode) != distance) {
+				System.out.println("ERROR: " + baseNode.getDistance(generatedNode) + " expected: " + distance);
+			}
+		}
+
+
 	}
 }

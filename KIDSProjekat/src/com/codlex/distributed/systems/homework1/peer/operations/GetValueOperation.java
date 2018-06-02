@@ -25,10 +25,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GetValueOperation {
 
-	// TODO: handle failed
+	// TODO: [FAILURES] handle failed
 	private final Node localNode;
 
-	// TODO: handle concurrency well.
+	// TODO: [FAILURES] handle concurrency well.
 	private final Set<NodeInfo> nodes = new HashSet<>();
 	private final Set<NodeInfo> asked = new HashSet<>();
 	private final KademliaId lookupId;
@@ -44,15 +44,14 @@ public class GetValueOperation {
 
 		this.nodes.add(this.localNode.getInfo());
 
-		// TODO: check if all nodes are contacted then?
+		// TODO: [FAILURES] check if all nodes are contacted then?
 		handleNodes(getFullData, this.localNode.getRoutingTable().getAllNodes(), callback);
 
 
-		// TODO: do with timeout effort
+		// TODO: [FAILURES] do with timeout effort
 		// this.localNode.getRoutingTable().setUnresponsiveContacts(this.getFailedNodes());
 	}
 
-	// TODO: SEEMS LIKE INFINITE LOOP CHECK THIS (RECURSIVE)
 	private void handleNodes(boolean getFullData, List<NodeInfo> nodes, BiConsumer<NodeInfo, DHTEntry> callback) {
 		// System.out.println("Number of nodes received: " + nodes.size());
 		synchronized (this.nodes) {
@@ -86,6 +85,7 @@ public class GetValueOperation {
 
 			this.asked.add(this.localNode.getInfo());
 
+			// TODO: [FAILURES] check if this is ok
 //			if (isFinished()) {
 //				log.debug("Finished getting closest nodes to: {}, nodes: {}. ", this.lookupId, getClosestNodes());
 //				callback.accept(null, null);

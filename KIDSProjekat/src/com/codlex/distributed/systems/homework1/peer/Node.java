@@ -77,7 +77,7 @@ public class Node {
 	@Getter
 	private RoutingTable routingTable;
 
-	private final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor();
+	public final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor();
 
 	@Getter
 	private final StringProperty task = new SimpleStringProperty("NOT CONNECTED");
@@ -93,16 +93,7 @@ public class Node {
 	private String videoDirectory;
 
 	public Node(int port, int streamingPort) {
-
-		try {
-			this.info = new NodeInfo(new KademliaId(IdType.Node, this.region),
-					InetAddress.getLocalHost().getHostAddress(), port, streamingPort);
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-			throw new RuntimeException(e);
-		}
-
-		log.debug("{}, streaming port: {}", port, streamingPort);
+		this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), HostGetter.getUnsafe(), port, streamingPort);
 		this.server = createServer();
 		this.client = createClient();
 		this.routingTable = new RoutingTable(this.info);
@@ -110,7 +101,6 @@ public class Node {
 		createFolderForVideos();
 	}
 
-	// TODO: call this
 	public void onBootstrapFinished() {
 		SCHEDULER.scheduleWithFixedDelay(this::refresh, 0, Settings.refreshInterval, TimeUnit.MILLISECONDS);
 	}
@@ -118,14 +108,13 @@ public class Node {
 	public <Response extends Serializable> void sendMessage(final NodeInfo info, Messages messageType,
 			Serializable message, Consumer<Response> callback, Class<Response> responseClass) {
 		setTask("SENT " + messageType.getAddress());
-		// log.debug("Sending message to: {} messsage: {}", info,
-		// messageType.getAddress());
+
+		log.debug("{} -> {} says {}", this.info, info, messageType.getAddress());
 
 		this.client.post(info.port, info.address, messageType.getAddress(), (response) -> {
 			response.bodyHandler((body) -> {
-				// log.debug("Response received from: {} response for: {}",
-				// info, messageType.getAddress());
-
+				this.routingTable.insert(info);
+				log.debug("{} <- {} says {}", this.info, info, messageType.getAddress());
 				callback.accept(new Gson().fromJson(body.toString(), responseClass));
 				setTask("CONNECTED IDLE");
 
@@ -200,55 +189,64 @@ public class Node {
 	}
 
 	public final void bootstrap() {
+		log.debug("{} contacting bootstrap server.", this.info);
 		sendMessage(Settings.bootstrapNode, Messages.Join, new JoinRequest(this.info), (response) -> {
 			bootstrap(response.getBootstrapNode());
 		}, JoinResponse.class);
 	}
 
 	public synchronized final void bootstrap(NodeInfo node) {
+		log.debug("{} started bootstraping on network", this.info);
+
 		if (node.equals(this.info)) {
 			log.debug("{} has no need to bootstrap, I'm alone.", this.info);
 			onBootstrapFinished();
 			return;
 		}
 
-		log.debug(" Bootstraping of {} starting ", this.info);
 		this.task.set("BOOTSTRAPING");
 
 		sendMessage(node, Messages.Connect, new ConnectMessageRequest(this.info), (response) -> {
 			this.routingTable.insert(node);
 
-			final NodeLookup lookup = new NodeLookup(this, this.info.getId());
-			lookup.execute((nodes) -> {
-				// // TODO: check if this is needed
-				// refreshBuckets();
-
-				log.debug("## Bootstraping of {} finished ", this.info);
-				onBootstrapFinished();
-
-				this.task.set("CONNECTED IDLE");
-			});
-
-			// this.routingTable.dump(this.info.getId().toString());
+			// self lookup
+			new NodeLookup(this, this.info.getId(), (nodes) -> {
+				refreshBuckets(() -> {
+					log.debug("## Bootstraping of {} finished ", this.info);
+					this.task.set("CONNECTED IDLE");
+					onBootstrapFinished();
+				});
+			}).execute();
 		}, ConnectMessageResponse.class);
 	}
 
 	private void refresh() {
-		refreshBuckets();
-		this.dht.refresh();
+		refreshBuckets(() -> {
+			this.dht.refresh();
+		});
 	}
 
-	private void refreshBuckets() {
-		// TODO: To avoid redundant store RPCs for the same content from
+	private void refreshBuckets(Runnable onBucketsRefreshed) {
+		log.debug("{} started refreshing buckets", this.info);
+		AtomicInteger expectedExecutes = new AtomicInteger(KademliaId.ID_LENGTH);
+		for (int i = 1; i < KademliaId.ID_LENGTH; i++) {
+			log.debug("Generating id.");
+			final KademliaId current = this.info.getId().generateNodeIdByDistance(i);
+			log.debug("Generated id.");
+
+			new NodeLookup(this, current, (nodes) -> {
+				if (expectedExecutes.decrementAndGet() == 0) {
+					onBucketsRefreshed.run();
+					log.debug("{} finished refreshing buckets", this.info, nodes.size());
+				}
+			}).execute();
+		}
+
+		// OPTIMIZATION: To avoid redundant store RPCs for the same content from
 		// different nodes,
 		// a node only transfers a KV pair if its own ID is closer to the key
 		// than are the
 		// IDs of other nodes.
-		// for (int i = 1; i < KademliaId.ID_LENGTH; i++) {
-		// final KademliaId current =
-		// this.info.getId().generateNodeIdByDistance(i);
-		// new NodeLookup(this, current).execute();
-		// }
 	}
 
 	public String toString() {

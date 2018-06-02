@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -17,37 +20,55 @@ import com.codlex.distributed.systems.homework1.peer.Settings;
 import com.codlex.distributed.systems.homework1.peer.messages.FindNodesRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.FindNodesResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.Messages;
+import com.google.common.collect.ImmutableList;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class NodeLookup {
 
-	// TODO: handle failed
+	// TODO: [FAILURES] handle failed
 	private final Node localNode;
-	// TODO: handle concurrency well.
+	// TODO: [FAILURES] handle concurrency well.
 	private final Set<NodeInfo> nodes = new HashSet<>();
 	private final Set<NodeInfo> asked = new HashSet<>();
 	private final KademliaId lookupId;
 
-	public NodeLookup(Node node, KademliaId lookupId) {
-		this.localNode = node;
+	private ScheduledFuture<?> timeoutFuture;
+
+	private Consumer<List<NodeInfo>> callback;
+
+	private static final ScheduledExecutorService SCHEDULER = (ScheduledExecutorService) Executors.newSingleThreadScheduledExecutor();
+
+	public NodeLookup(Node localNode, KademliaId lookupId, Consumer<List<NodeInfo>> callback) {
+		this.localNode = localNode;
 		this.lookupId = lookupId;
+		this.callback = callback;
 	}
 
-	public void execute(Consumer<List<NodeInfo>> callback) {
+	private void processTimeout() {
+		log.debug("Lookup timeouted.");
+		this.callback.accept(ImmutableList.of());
+	}
+
+	public void execute() {
+
+		this.timeoutFuture = SCHEDULER.schedule(this::processTimeout, 5, TimeUnit.SECONDS);
+		log.debug("Scheduled timeout.");
+
 		this.nodes.add(this.localNode.getInfo());
+		this.asked.add(this.localNode.getInfo());
+
 		handleNodes(this.localNode.getRoutingTable().getAllNodes(), callback);
 
 
-		// TODO: do with timeout effort
+		// TODO: [FAILURES] do with timeout effort
 		// this.localNode.getRoutingTable().setUnresponsiveContacts(this.getFailedNodes());
 	}
 
-	// TODO: SEEMS LIKE INFINITE LOOP CHECK THIS (RECURSIVE)
 	private void handleNodes(List<NodeInfo> nodes, Consumer<List<NodeInfo>> callback) {
-		// System.out.println("Number of nodes received: " + nodes.size());
 		synchronized (this.nodes) {
+
 			for (final NodeInfo info : new ArrayList<>(nodes)) {
 				this.nodes.add(info);
 				if (!this.asked.contains(info)) {
@@ -60,9 +81,10 @@ public class NodeLookup {
 				}
 			}
 
-			this.asked.add(this.localNode.getInfo());
+
 			if (isFinished()) {
 				log.debug("Finished getting closest nodes to: {}, nodes: {}. ", this.lookupId, getClosestNodes());
+				this.timeoutFuture.cancel(false);
 				callback.accept(getClosestNodes());
 			}
 		}

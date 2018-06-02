@@ -48,7 +48,6 @@ public class StreamingServer {
 			.handler(new LoggingHandler(LogLevel.TRACE))
 			.childHandler(new ServerInitializer(node));
 			serverBootstrap.bind(port).sync();
-			log.debug("Streaming server started at http://localhost:{}.", port);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
