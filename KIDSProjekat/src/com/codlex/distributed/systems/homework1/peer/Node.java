@@ -126,7 +126,7 @@ public class Node {
 	}
 
 	public <Response extends Serializable> void sendMessage(final NodeInfo info, Messages messageType,
-			Serializable message, Consumer<Response> callback, Class<Response> responseClass) {
+			Serializable message, Consumer<Response> callback, Consumer<Throwable> onError, Class<Response> responseClass) {
 		// setTask("SENT " + messageType.getAddress());
 
 		log.trace("{} -> {} says {}", this.info, info, messageType.getAddress());
@@ -140,8 +140,11 @@ public class Node {
 
 			});
 		}).setTimeout(5000)
-		.exceptionHandler( (e) -> { log.error("Problem with posting the request", e);} )
-		.end(new Gson().toJson(message));
+		.exceptionHandler( (e) -> {
+			log.error("Problem with posting the request", e);
+			onError.accept(e);
+		} )
+		.end(GsonProvider.get().toJson(message));
 	}
 
 	private void setTask(String task) {
@@ -181,7 +184,7 @@ public class Node {
 					public GetValueResponse callback(GetValueRequest message) {
 						Node.this.routingTable.insert(message.getNode());
 						DHTEntry value = Node.this.dht.get(message.getLookupId());
-
+						log.debug("Looking up value for you: {}", value);
 						if (value != null) {
 							if (!message.isGetData()) {
 								value = value.getWithoutData();
@@ -221,7 +224,7 @@ public class Node {
 			log.debug("{} contacting bootstrap server.", this.info);
 			sendMessage(Settings.bootstrapNode, Messages.Join, new JoinRequest(this.info), (response) -> {
 				bootstrap(response.getBootstrapNode());
-			}, JoinResponse.class);
+			}, (e) -> { System.exit(0); },  JoinResponse.class);
 			callback.run();
 		}, 0, TimeUnit.MILLISECONDS);
 	}
@@ -248,7 +251,7 @@ public class Node {
 					onBootstrapFinished();
 				});
 			}).execute();
-		}, ConnectMessageResponse.class);
+		},  (e) -> { System.exit(0);}, ConnectMessageResponse.class);
 	}
 
 	private void refresh() {
@@ -299,10 +302,11 @@ public class Node {
 	}
 
 	public void findValue(KademliaId key, boolean getFullData, BiConsumer<NodeInfo, DHTEntry> callback) {
-		new GetValueOperation(this, key).execute(getFullData, callback);
+		new GetValueOperation(this, key, getFullData, callback).execute();
 	}
 
 	public void search(String text, Consumer<List<String>> callback) {
+
 		Set<String> results = new ConcurrentHashSet<>();
 		String[] keywords = text.split(" ");
 

@@ -270,7 +270,7 @@ public class VideoStreamingGui {
 		log.debug("Started streaming {}", videoName);
 
 		KademliaId videoId = new KademliaId(IdType.Video, this.node.getRegion(), videoName);
-		new GetValueOperation(node, videoId).execute(false, (targetNode, value) -> {
+		new GetValueOperation(node, videoId, false, (targetNode, value) -> {
 			Platform.runLater(() -> {
 				log.debug("Target node:" + targetNode);
 				String URI = String.format("http://%s:%d/%s", targetNode.address, targetNode.streamingPort, URLEncoder.encode(videoId.toHex()));
@@ -290,7 +290,7 @@ public class VideoStreamingGui {
 
 			});
 
-		});
+		}).execute();
 	}
 
 	private class ButtonCell extends TableCell<String, String> {
@@ -358,6 +358,7 @@ public class VideoStreamingGui {
 		searchButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
 			@Override
 			public void handle(MouseEvent e) {
+				log.debug("SEARCH CLICKED.");
 				VideoStreamingGui.this.node.search(searchInput.getText(), (results) -> {
 					log.debug("Results in search: {}", results);
 					Platform.runLater(() -> {

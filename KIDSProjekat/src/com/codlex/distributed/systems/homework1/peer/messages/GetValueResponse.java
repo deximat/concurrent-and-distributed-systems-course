@@ -9,8 +9,10 @@ import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest.
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
 
 @AllArgsConstructor
+@ToString
 public class GetValueResponse implements Serializable {
 
 	@Getter

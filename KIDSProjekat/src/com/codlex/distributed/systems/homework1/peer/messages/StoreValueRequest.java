@@ -60,7 +60,6 @@ public class StoreValueRequest implements Serializable {
 	private NodeInfo node;
 	private ValueContainer value;
 
-
 	public static void main(String[] args) {
 		System.out.println(new KademliaId(IdType.Video, Region.Europe, "ma.mp4"));
 	}

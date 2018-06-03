@@ -22,6 +22,8 @@ import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest.ValueContainer;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueResponse;
 import com.codlex.distributed.systems.homework1.peer.operations.NodeLookup;
+import com.codlex.distributed.systems.homework1.peer.operations.RefreshOperation;
+import com.codlex.distributed.systems.homework1.peer.operations.StoreOperation;
 import com.google.common.base.Objects;
 import com.google.common.io.Files;
 
@@ -49,23 +51,11 @@ public class DHT {
 			.synchronizedObservableMap(FXCollections.observableMap(new HashMap<>()));
 
 	public void store(DHTEntry value) {
-		store(value, (nodesStoredOn) -> {
-		});
+		new StoreOperation(this.localNode, value, (nodesStoredOn) -> {
+		}).store();
 	}
 
-	public void store(DHTEntry value, Consumer<List<NodeInfo>> onStoredCallback) {
-		new NodeLookup(this.localNode, value.getId(), (closestNodes) -> {
-			for (NodeInfo node : closestNodes) {
-				log.debug("Started storing value: {} at {}", value, node);
 
-				this.localNode.sendMessage(node, Messages.Store,
-						new StoreValueRequest(this.localNode.getInfo(), ValueContainer.pack(value)), (response) -> {
-							onStoredCallback.accept(closestNodes);
-							log.debug("Stored value: {} at {}", value, node);
-						}, StoreValueResponse.class);
-			}
-		}).execute();
-	}
 
 	public synchronized DHTEntry get(KademliaId key) {
 		DHTEntry result = this.table.get(key);
@@ -76,35 +66,18 @@ public class DHT {
 		}
 	}
 
-	public void refresh() {
-		long startTime = System.currentTimeMillis();
-		log.debug("{} refreshing DHT entries", this.localNode.getInfo());
-
-		final Runnable finishCallback = () -> {
-			log.debug("{} finished refreshing DHT entries in {}ms.", this.localNode.getInfo(),
-					System.currentTimeMillis() - startTime);
-		};
-
-		final AtomicInteger expectedCount = new AtomicInteger(this.table.values().size() + 1);
-		for (DHTEntry entry : this.table.values()) {
-			store(entry, (closestNodes) -> {
-				if (!closestNodes.contains(this.localNode.getInfo())) {
-					this.table.remove(entry.getId());
-					if (entry instanceof Video) {
-						((Video) entry).delete();
-					}
-					log.debug("Removing {} from {}", entry, this.localNode);
-				}
-
-				if (expectedCount.decrementAndGet() == 0) {
-					finishCallback.run();
-				}
-			});
+	public synchronized void remove(DHTEntry remove) {
+		this.table.remove(remove.getId());
+		if (remove instanceof Video) {
+			((Video) remove).delete();
 		}
+		log.debug("Removing {} from {}", remove, this.localNode);
+	}
 
-		if (expectedCount.decrementAndGet() == 0) {
-			finishCallback.run();
-		}
+	public synchronized void refresh() {
+		new RefreshOperation(this.localNode, this.table.values(), this::remove, () -> {
+			log.debug("Refresh done!");
+		}).execute();
 	}
 
 	public synchronized void put(ValueContainer value) {

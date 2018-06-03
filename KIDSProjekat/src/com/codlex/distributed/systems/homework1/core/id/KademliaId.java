@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class KademliaId implements Serializable {
 
-	public final static int ID_LENGTH = 120;
+	public final static int ID_LENGTH = 40;
 	public static final int ID_LENGTH_BITS = ID_LENGTH * 8;
 	public final static int ID_LENGTH_TYPE = 2;
 	public final static int ID_LENGTH_REGION = 8;
@@ -28,6 +28,7 @@ public class KademliaId implements Serializable {
 	private static final Charset CHARSET = Charset.forName("UTF-8");
 
 	private final byte[] bytes;
+	private boolean generated;
 
 	public KademliaId(byte[] bytes) {
 		this.bytes = bytes;
@@ -119,7 +120,9 @@ public class KademliaId implements Serializable {
 			result[i] = allOnes.toByteArray()[0];
 		}
 
-		return this.xor(new KademliaId(result));
+		KademliaId generatedId = this.xor(new KademliaId(result));
+		generatedId.generated = true;
+		return generatedId;
 	}
 
 	public int getFirstSetBitIndex() {
@@ -200,11 +203,19 @@ public class KademliaId implements Serializable {
 	}
 
 	public String toHex() {
-		return new String(this.bytes);
+		if (this.generated) {
+			return new KademliaId(getType(), getRegion(), "GENERATED").toHex();
+		} else {
+			return new String(this.bytes);
+		}
 	}
 
 	public String toHexShort() {
-		return new String(this.bytes).substring(0, 15).toUpperCase();
+		if (this.generated) {
+			return new KademliaId(getType(), getRegion(), "GENERATED").toHexShort();
+		} else {
+			return new String(this.bytes).substring(0, 15).toUpperCase();
+		}
 	}
 
 	public static void main(String[] bla) {
