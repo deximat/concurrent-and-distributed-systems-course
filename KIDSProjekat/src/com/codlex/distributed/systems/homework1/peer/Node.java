@@ -1,9 +1,12 @@
 package com.codlex.distributed.systems.homework1.peer;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +24,7 @@ import org.apache.commons.text.similarity.LevenshteinDistance;
 
 import com.codlex.distributed.systems.homework1.bootstrap.messages.JoinRequest;
 import com.codlex.distributed.systems.homework1.bootstrap.messages.JoinResponse;
+import com.codlex.distributed.systems.homework1.core.GsonProvider;
 import com.codlex.distributed.systems.homework1.core.handers.JsonHandler;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.core.streaming.StreamingServer;
@@ -49,8 +53,10 @@ import com.google.gson.Gson;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.RequestOptions;
 import io.vertx.core.impl.ConcurrentHashSet;
 import io.vertx.ext.web.Router;
 import javafx.application.Platform;
@@ -121,20 +127,21 @@ public class Node {
 
 	public <Response extends Serializable> void sendMessage(final NodeInfo info, Messages messageType,
 			Serializable message, Consumer<Response> callback, Class<Response> responseClass) {
-
 		// setTask("SENT " + messageType.getAddress());
 
 		log.trace("{} -> {} says {}", this.info, info, messageType.getAddress());
-
 		this.client.post(info.port, info.address, messageType.getAddress(), (response) -> {
 			response.bodyHandler((body) -> {
+
 				log.trace("{} <- {} says {}", this.info, info, messageType.getAddress());
 				this.routingTable.insert(info);
-				callback.accept(new Gson().fromJson(body.toString(), responseClass));
+				callback.accept(GsonProvider.get().fromJson(body.toString(), responseClass));
 				// setTask("CONNECTED IDLE");
 
 			});
-		}).end(new Gson().toJson(message));
+		}).setTimeout(5000)
+		.exceptionHandler( (e) -> { log.error("Problem with posting the request", e);} )
+		.end(new Gson().toJson(message));
 	}
 
 	private void setTask(String task) {
@@ -195,6 +202,10 @@ public class Node {
 						return new StoreValueResponse();
 					}
 				});
+
+		router.exceptionHandler((e) -> {
+			log.error("", e);
+		});
 
 		HttpServer server = Vertx.vertx().createHttpServer();
 		server.requestHandler(router::accept);
@@ -326,26 +337,33 @@ public class Node {
 		}
 	}
 
-	public void uploadVideo(String name, byte[] videoData, Consumer<Object> callback) {
-		// we need to make instance per region
-		for (Region region : Region.realValues()) {
-			for (String keyword : name.split(" ")) {
-				Keyword keywordObject = new Keyword(new KademliaId(IdType.Keyword, region, keyword.trim()),
-						ImmutableSet.of(name));
-				dht.store(keywordObject);
+	public void uploadVideo(String name, String filePath, Consumer<Object> callback) {
+		SCHEDULER.schedule(() -> {
+
+			byte[] bytes = null;
+			try {
+				bytes = Files.readAllBytes(Paths.get(filePath));
+			} catch (IOException e1) {
+				log.error("Error while reading file.", e1);
 			}
 
-			KademliaId videoId = new KademliaId(IdType.Video, region, name);
-			Video video = new Video(videoId, videoData);
-			dht.store(video);
-		}
+			// we need to make instance per region
+			for (Region region : Region.realValues()) {
+				KademliaId videoId = new KademliaId(IdType.Video, region, name);
+				Video video = new Video(videoId, bytes);
+				dht.store(video);
 
-		DELAYER.schedule(() -> {
-			callback.accept("DONE");
-		}, 1000, TimeUnit.MILLISECONDS);
+				for (String keyword : name.split(" ")) {
+					Keyword keywordObject = new Keyword(new KademliaId(IdType.Keyword, region, keyword.trim()),
+							ImmutableSet.of(name));
+					dht.store(keywordObject);
+				}
+
+				callback.accept("DONE");
+			}
+
+		},  0, TimeUnit.MILLISECONDS);
 	}
-
-	private static final ScheduledExecutorService DELAYER = Executors.newSingleThreadScheduledExecutor();
 
 	public File getVideoForStreaming(final KademliaId id) {
 		Video video = (Video) this.dht.get(id);

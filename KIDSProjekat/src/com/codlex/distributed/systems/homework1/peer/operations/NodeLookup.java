@@ -78,7 +78,7 @@ public class NodeLookup {
 			if (!this.asked.contains(info)) {
 				this.localNode.sendMessage(info, Messages.FindNodes,
 						new FindNodesRequest(this.localNode.getInfo(), this.lookupId), (response) -> {
-							this.asked.add(info); // TODO: should we do this
+							this.asked.add(info); // TODO: [FAILURES] should we do this
 													// before sending message?
 							handleNodes(response.getNodes());
 						}, FindNodesResponse.class);

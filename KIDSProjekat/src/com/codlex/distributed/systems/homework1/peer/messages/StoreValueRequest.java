@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.NodeInfo;
+import com.codlex.distributed.systems.homework1.peer.Region;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 import com.codlex.distributed.systems.homework1.peer.dht.content.Keyword;
@@ -59,4 +60,8 @@ public class StoreValueRequest implements Serializable {
 	private NodeInfo node;
 	private ValueContainer value;
 
+
+	public static void main(String[] args) {
+		System.out.println(new KademliaId(IdType.Video, Region.Europe, "ma.mp4"));
+	}
 }

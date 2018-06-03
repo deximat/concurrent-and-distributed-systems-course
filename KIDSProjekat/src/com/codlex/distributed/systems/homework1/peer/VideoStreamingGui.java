@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 
+import com.codlex.distributed.systems.homework1.bootstrap.BootstrapNode;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
@@ -252,13 +253,7 @@ public class VideoStreamingGui {
 			@Override
 			public void handle(MouseEvent e) {
 				uploadStatus.setText("UPLOADING...");
-				byte[] bytes = null;
-				try {
-					bytes = Files.readAllBytes(Paths.get(filePath.getText()));
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				}
-				VideoStreamingGui.this.node.uploadVideo(nameField.getText(), bytes, (result) -> {
+				VideoStreamingGui.this.node.uploadVideo(nameField.getText(), filePath.getText(), (result) -> {
 					Platform.runLater(() -> {
 						uploadStatus.setText(result.toString());
 					});
@@ -415,6 +410,7 @@ public class VideoStreamingGui {
 	}
 
 	public static void main(String[] args) {
+//		BootstrapNode.main(null);
 		Integer port = Integer.parseInt(args[0]);
 		Integer streamingPort = Integer.parseInt(args[1]);
 		Log4jConfigurator.configure(String.format("bootstrap-%d-%d.log", port, streamingPort));

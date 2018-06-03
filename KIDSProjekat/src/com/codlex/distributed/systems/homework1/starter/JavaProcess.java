@@ -22,7 +22,7 @@ public final class JavaProcess {
         String className = klass.getCanonicalName();
 
         List<String> argsAll = new ArrayList<>();
-        argsAll.addAll(ImmutableList.of(javaBin, "-cp", classpath, className));
+        argsAll.addAll(ImmutableList.of(javaBin, "-Xmx500m", "-cp", classpath, className));
         argsAll.addAll(Arrays.asList(args));
 
         ProcessBuilder builder = new ProcessBuilder(argsAll);

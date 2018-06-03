@@ -2,6 +2,7 @@ package com.codlex.distributed.systems.homework1.core.handers;
 
 import java.io.Serializable;
 
+import com.codlex.distributed.systems.homework1.core.GsonProvider;
 import com.google.gson.Gson;
 
 import io.vertx.core.Handler;
@@ -21,7 +22,7 @@ public abstract class JsonHandler<Request extends Serializable, Response extends
 	@Override
 	public void handle(final RoutingContext event) {
 		// log.debug("Received message: {} deserialization to: {} ",  event.getBodyAsString(), JsonHandler.this.clazz.getSimpleName());
-		final Gson gson = new Gson();
+		final Gson gson = GsonProvider.get();
 		Request message = gson.fromJson(event.getBodyAsString(), JsonHandler.this.clazz);
 
 		event.response().end(gson.toJson(callback(message)));

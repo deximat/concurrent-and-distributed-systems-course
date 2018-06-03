@@ -75,7 +75,7 @@ public class GetValueOperation {
 									this.valueFound.set(true);
 									callback.accept(info, response.getValue().get());
 								}
-								this.asked.add(info); // TODO: should we do this before sending message?
+								this.asked.add(info); // TODO: [FAILURES] should we do this before sending message?
 								this.localNode.getRoutingTable().insert(info);
 								handleNodes(getFullData, response.getNodes(), callback);
 

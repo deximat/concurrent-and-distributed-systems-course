@@ -56,6 +56,8 @@ public class DHT {
 	public void store(DHTEntry value, Consumer<List<NodeInfo>> onStoredCallback) {
 		new NodeLookup(this.localNode, value.getId(), (closestNodes) -> {
 			for (NodeInfo node : closestNodes) {
+				log.debug("Started storing value: {} at {}", value, node);
+
 				this.localNode.sendMessage(node, Messages.Store,
 						new StoreValueRequest(this.localNode.getInfo(), ValueContainer.pack(value)), (response) -> {
 							onStoredCallback.accept(closestNodes);
