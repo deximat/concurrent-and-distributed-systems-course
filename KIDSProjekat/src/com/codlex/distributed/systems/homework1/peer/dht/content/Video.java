@@ -13,11 +13,15 @@ import com.google.common.io.Files;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+@Slf4j
 public class Video extends DHTEntry {
 
 	@EqualsAndHashCode
+	@ToString
 	public static class View {
+
 		final String id = UUID.randomUUID().toString();
 		final long time = System.currentTimeMillis();
 
@@ -48,6 +52,7 @@ public class Video extends DHTEntry {
 	@Getter
 	private byte[] videoData;
 
+	@Getter
 	private Set<View> views = new HashSet<>();
 
 	@Getter
@@ -101,11 +106,11 @@ public class Video extends DHTEntry {
 				.toString();
 	}
 
-	public int getViewCount() {
+	public synchronized int getViewCount() {
 		return this.views.size();
 	}
 
-	protected int calculateDesiredRedundancy() {
+	protected synchronized int calculateDesiredRedundancy() {
 		int viewCount = getViewCount();
 		if (viewCount < Settings.ViewsToStartDynamicRedundancy) {
 			return 0;

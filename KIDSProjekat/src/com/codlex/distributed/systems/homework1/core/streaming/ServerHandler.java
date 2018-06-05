@@ -4,6 +4,16 @@ package com.codlex.distributed.systems.homework1.core.streaming;
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.net.URLDecoder;
+
+import com.codlex.distributed.systems.homework1.core.id.KademliaId;
+import com.codlex.distributed.systems.homework1.peer.Node;
+
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -17,16 +27,6 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import lombok.extern.slf4j.Slf4j;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-
-import com.codlex.distributed.systems.homework1.core.id.KademliaId;
-import com.codlex.distributed.systems.homework1.peer.Node;
 
 @Slf4j
 public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
@@ -43,8 +43,6 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 		final KademliaId videoId = getVideoId(request);
 
 		File file = this.node.getVideoForStreaming(videoId);
-
-		log.debug("Streaming started: {}", file);
 
 		if (file.isHidden() || !file.exists()) {
 			System.err.println("NOT_FOUND");
@@ -79,15 +77,14 @@ public class ServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> 
 			@Override
 			public void operationProgressed(ChannelProgressiveFuture future,long progress, long total) {
 				if (total < 0) {
-					log.debug(future.channel() + " Transfer progress: " + progress);
+					// log.debug(future.channel() + " Transfer progress: " + progress);
 				} else {
-					log.debug(future.channel() + " Transfer progress: " + progress + " / " + total);
+					// log.debug(future.channel() + " Transfer progress: " + progress + " / " + total);
 				}
 			}
 			@Override
 			public void operationComplete(ChannelProgressiveFuture future) {
-				log.debug(future.channel() + " Transfer complete.");
-				ServerHandler.this.node.onVideoStreamingEnd();
+				// log.debug(future.channel() + " Transfer complete.");
 				try {
 					randomAccessFile.close();
 				} catch (IOException e) {

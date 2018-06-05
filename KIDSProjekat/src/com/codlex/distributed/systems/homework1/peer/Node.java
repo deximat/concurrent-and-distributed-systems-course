@@ -73,9 +73,6 @@ import lombok.extern.slf4j.Slf4j;
 public class Node {
 
 	@Getter
-	private final IntegerProperty currentStreamers = new SimpleIntegerProperty();
-
-	@Getter
 	private NodeInfo info;
 
 	private HttpServer server;
@@ -140,9 +137,9 @@ public class Node {
 				// setTask("CONNECTED IDLE");
 
 			});
-		}).setTimeout(Settings.SoftTimeoutMillis).exceptionHandler((e) -> {
+		}).setTimeout(messageType.getTimeout(message)).exceptionHandler((e) -> {
 			this.routingTable.onNodeFailed(info);
-			log.error("Problem with posting the request {} to {}: {}", messageType.getAddress(), info, e.getMessage());
+			log.error("{} had problem with posting the request {} to {}: {}", this, messageType.getAddress(), info, e.getMessage());
 			onError.accept(e);
 		}).end(GsonProvider.get().toJson(message));
 	}
@@ -200,6 +197,12 @@ public class Node {
 		router.route(HttpMethod.POST, Messages.Store.getAddress())
 				.handler(new JsonHandler<StoreValueRequest, StoreValueResponse>(StoreValueRequest.class) {
 					public StoreValueResponse callback(StoreValueRequest message) {
+
+//						if (message.getValue().get() instanceof Video) {
+//							Video video = (Video) message.getValue().get();
+//							log.debug("Received {} from {}, views: {}", video, message.getNode(), video.getViews());
+//						}
+
 						Node.this.routingTable.insert(message.getNode());
 						Node.this.dht.put(message.getValue());
 						return new StoreValueResponse();
@@ -268,7 +271,7 @@ public class Node {
 					log.debug("## Bootstraping of {} finished ", this.info);
 					this.task.set("CONNECTED IDLE");
 					onBootstrapFinished();
-				});
+				}).execute();
 			}).execute();
 		}, (e) -> {
 			System.exit(0);
@@ -368,13 +371,6 @@ public class Node {
 
 	public File getVideoForStreaming(final KademliaId id) {
 		return this.dht.getVideoForStreaming(id);
-	}
-
-	public void onVideoStreamingEnd() {
-		Platform.runLater(() -> {
-			log.debug("Decrementing number of streamers.");
-			this.currentStreamers.subtract(1);
-		});
 	}
 
 	public String getVideoDirectory() {

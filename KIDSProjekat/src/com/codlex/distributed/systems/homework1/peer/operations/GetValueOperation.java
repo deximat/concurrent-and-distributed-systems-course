@@ -41,6 +41,7 @@ public class GetValueOperation {
 
 	private NodeInfo valueNode;
 	private DHTEntry value;
+	private boolean found;
 
 	private static final ScheduledExecutorService SCHEDULER = (ScheduledExecutorService) Executors
 			.newSingleThreadScheduledExecutor();
@@ -98,7 +99,7 @@ public class GetValueOperation {
 	}
 
 	private synchronized void checkFinishAndProcess() {
-		if (this.timeouted) {
+		if (this.timeouted || this.found) {
 			return;
 		}
 
@@ -150,6 +151,7 @@ public class GetValueOperation {
 	}
 
 	private void onFinish() {
+		this.found = true;
 		this.timeoutFuture.cancel(false);
 		log.trace("Finished getting value for {}", this.lookupId.toHexShort());
 		this.callback.accept(this.valueNode, this.value);

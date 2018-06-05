@@ -70,8 +70,9 @@ public class DHT {
 	}
 
 	public synchronized void refresh() {
+		log.debug("{} started refreshing DHT.", this.localNode);
 		new RefreshOperation(this.localNode, getTableAsList(), this::remove, () -> {
-			log.debug("Refresh done!");
+			log.debug("{} finished refreshing DHT.", this.localNode);
 		}).execute();
 	}
 

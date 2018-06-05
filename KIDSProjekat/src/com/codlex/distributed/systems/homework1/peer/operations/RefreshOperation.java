@@ -1,14 +1,19 @@
 package com.codlex.distributed.systems.homework1.peer.operations;
 
 import java.util.ArrayList;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
 
 import com.codlex.distributed.systems.homework1.peer.Node;
+import com.codlex.distributed.systems.homework1.peer.Region;
 import com.codlex.distributed.systems.homework1.peer.Settings;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
+import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 
+import lombok.extern.slf4j.Slf4j;
+@Slf4j
 public class RefreshOperation {
 
 	private Node localNode;
@@ -43,6 +48,9 @@ public class RefreshOperation {
 
 			DHTEntry value = this.values.get(this.entryToRefresh);
 			new StoreOperation(this.localNode, value, (closestNodes) -> {
+				if (value.getId().getType() == IdType.Video && value.getId().getRegion() == Region.Europe) {
+					log.debug("{} stored {} to {}.", this.localNode, value, closestNodes);
+				}
 				onStoreSuccess();
 				if (!closestNodes.contains(this.localNode.getInfo())) {
 					this.removeFunction.accept(value);

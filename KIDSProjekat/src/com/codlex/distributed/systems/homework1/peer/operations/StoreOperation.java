@@ -37,7 +37,7 @@ public class StoreOperation {
 
 
 	private synchronized void onNodesObtained(List<NodeInfo> closestNodes) {
-		log.debug("Obtained nodes: {}, for {}", closestNodes.size(), this.value);
+		//log.debug("Obtained nodes: {}, for {}", closestNodes.size(), this.value);
 		this.closestNodes = closestNodes;
 		this.nextNodeToStore = 0;
 		checkIfFinishedAndStoreIfNot();
