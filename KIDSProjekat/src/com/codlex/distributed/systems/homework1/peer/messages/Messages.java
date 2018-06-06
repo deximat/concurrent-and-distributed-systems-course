@@ -6,8 +6,8 @@ import com.codlex.distributed.systems.homework1.peer.Settings;
 import com.codlex.distributed.systems.homework1.peer.dht.content.Video;
 
 public enum Messages {
-	Join("/join"), Connect("/connect"), Get("/getValue"), FindNodes("/getNodes"), Store("/setValue"), StreamingStarted(
-			"/streamingStarted"), Ping("/ping");
+	Join("/join"), Get("/getValue"), FindNodes("/getNodes"), Store("/setValue"), StreamingStarted(
+			"/streamingStarted"), Ping("/ping"), OnNodeDeath("/onNodeDeath");
 
 	private final String address;
 

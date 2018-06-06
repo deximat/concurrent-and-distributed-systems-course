@@ -30,8 +30,6 @@ import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 import com.codlex.distributed.systems.homework1.peer.dht.content.Keyword;
 import com.codlex.distributed.systems.homework1.peer.dht.content.Video;
-import com.codlex.distributed.systems.homework1.peer.messages.ConnectMessageRequest;
-import com.codlex.distributed.systems.homework1.peer.messages.ConnectMessageResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.FindNodesRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.FindNodesResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.GetValueRequest;
@@ -53,7 +51,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.buffer.Buffer;
@@ -61,9 +58,6 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.impl.ConcurrentHashSet;
-import io.vertx.core.parsetools.RecordParser;
-import io.vertx.core.streams.Pump;
-import io.vertx.core.streams.ReadStream;
 import io.vertx.ext.web.Router;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -151,11 +145,10 @@ public class Node {
 			});
 		}).setTimeout(messageType.getTimeout(message)).exceptionHandler((e) -> {
 			this.routingTable.onNodeFailed(info);
-			log.error("{} had problem with posting the request {} to {}: {}", this, messageType.getAddress(), info, e.getMessage());
+			log.error("{} had problem with posting the request {} to {}: {}", this, messageType.getAddress(), info,
+					e.getMessage());
 			onError.accept(e);
 		}).setChunked(true).end(buffer);
-
-
 
 	}
 
@@ -165,25 +158,14 @@ public class Node {
 		});
 	}
 
-
 	private HttpServer createServer() {
 		VertxOptions options = new VertxOptions();
 		options.setEventLoopPoolSize(16);
 		options.setWorkerPoolSize(16);
 		Vertx vertx = Vertx.vertx(options);
 
-
 		final Router router = Router.router(vertx);
 		router.route().handler(io.vertx.ext.web.handler.BodyHandler.create());
-		router.route(HttpMethod.POST, Messages.Connect.getAddress())
-				.handler(new JsonHandler<ConnectMessageRequest, ConnectMessageResponse>(ConnectMessageRequest.class) {
-					public ConnectMessageResponse callback(ConnectMessageRequest message) {
-						// log.debug("Received connect message from: {}",
-						// message.node);
-						Node.this.routingTable.insert(message.node);
-						return new ConnectMessageResponse(23);
-					}
-				});
 
 		router.route(HttpMethod.POST, Messages.FindNodes.getAddress())
 				.handler(new JsonHandler<FindNodesRequest, FindNodesResponse>(FindNodesRequest.class) {
@@ -216,10 +198,11 @@ public class Node {
 				.handler(new JsonHandler<StoreValueRequest, StoreValueResponse>(StoreValueRequest.class) {
 					public StoreValueResponse callback(StoreValueRequest message) {
 
-//						if (message.getValue().get() instanceof Video) {
-//							Video video = (Video) message.getValue().get();
-//							log.debug("Received {} from {}, views: {}", video, message.getNode(), video.getViews());
-//						}
+						// if (message.getValue().get() instanceof Video) {
+						// Video video = (Video) message.getValue().get();
+						// log.debug("Received {} from {}, views: {}", video,
+						// message.getNode(), video.getViews());
+						// }
 
 						Node.this.routingTable.insert(message.getNode());
 						Node.this.dht.put(message.getValue());
@@ -236,8 +219,8 @@ public class Node {
 					}
 				});
 
-		router.route(HttpMethod.POST, Messages.Ping.getAddress()).handler(
-				new JsonHandler<PingRequest, PingResponse>(PingRequest.class) {
+		router.route(HttpMethod.POST, Messages.Ping.getAddress())
+				.handler(new JsonHandler<PingRequest, PingResponse>(PingRequest.class) {
 					public PingResponse callback(PingRequest message) {
 						Node.this.routingTable.insert(message.getNode());
 						return new PingResponse();
@@ -261,7 +244,7 @@ public class Node {
 			init();
 			log.debug("{} contacting bootstrap server.", this.info);
 			sendMessage(Settings.bootstrapNode, Messages.Join, new JoinRequest(this.info), (response) -> {
-				bootstrap(response.getBootstrapNode());
+				bootstrap(response.getBootstrapNodes());
 			}, (e) -> {
 				System.exit(0);
 			}, JoinResponse.class);
@@ -269,31 +252,24 @@ public class Node {
 		}, 0, TimeUnit.MILLISECONDS);
 	}
 
-	public synchronized final void bootstrap(NodeInfo node) {
+	public synchronized final void bootstrap(List<NodeInfo> bootstrapNodes) {
 		log.debug("{} started bootstraping on network", this.info);
+		setTask("BOOTSTRAPING");
 
-		if (node.equals(this.info)) {
-			log.debug("{} has no need to bootstrap, I'm alone.", this.info);
-			onBootstrapFinished();
-			return;
+		// add all bootstrap servers to routing table
+		for (NodeInfo node : bootstrapNodes) {
+			this.routingTable.insert(node);
 		}
 
-		this.task.set("BOOTSTRAPING");
-
-		sendMessage(node, Messages.Connect, new ConnectMessageRequest(this.info), (response) -> {
-			this.routingTable.insert(node);
-
-			// self lookup
-			new NodeLookup(this, this.info.getId(), Settings.K, (nodes) -> {
-				new RefreshBucketOperation(this, () -> {
-					log.debug("## Bootstraping of {} finished ", this.info);
-					this.task.set("CONNECTED IDLE");
-					onBootstrapFinished();
-				}).execute();
+		// self lookup
+		new NodeLookup(this, this.info.getId(), Settings.K, (nodes) -> {
+			new RefreshBucketOperation(this, () -> {
+				log.debug("## Bootstraping of {} finished ", this.info);
+				setTask("CONNECTED IDLE");
+				onBootstrapFinished();
 			}).execute();
-		}, (e) -> {
-			System.exit(0);
-		}, ConnectMessageResponse.class);
+		}).execute();
+
 	}
 
 	private void refresh() {
@@ -319,7 +295,6 @@ public class Node {
 	}
 
 	public void search(String text, Consumer<List<String>> callback) {
-
 		Set<String> results = new ConcurrentHashSet<>();
 		String[] keywords = text.split(" ");
 
@@ -328,7 +303,6 @@ public class Node {
 			KademliaId key = new KademliaId(IdType.Keyword, this.region, keyword);
 			findValue(key, false, (node, value) -> {
 				synchronized (results) {
-
 					log.debug("Found {} for {}", value, keyword);
 
 					if (value != null) {
@@ -373,7 +347,9 @@ public class Node {
 			for (Region region : Region.realValues()) {
 				KademliaId videoId = new KademliaId(IdType.Video, region, name);
 				Video video = new Video(videoId, bytes);
-				store(video);
+				new StoreOperation(this, video, (nodesStoredOn) -> {
+					callback.accept("DONE");
+				}).store();
 
 				for (String keyword : name.split(" ")) {
 					Keyword keywordObject = new Keyword(new KademliaId(IdType.Keyword, region, keyword.trim()),
@@ -381,7 +357,6 @@ public class Node {
 					store(keywordObject);
 				}
 
-				callback.accept("DONE");
 			}
 
 		}, 0, TimeUnit.MILLISECONDS);

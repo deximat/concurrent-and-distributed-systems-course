@@ -6,6 +6,9 @@ import java.util.List;
 import com.codlex.distributed.systems.homework1.peer.Node;
 import com.codlex.distributed.systems.homework1.peer.NodeInfo;
 import com.codlex.distributed.systems.homework1.peer.Settings;
+import com.codlex.distributed.systems.homework1.peer.messages.Messages;
+import com.codlex.distributed.systems.homework1.peer.messages.OnNodeDeathRequest;
+import com.codlex.distributed.systems.homework1.peer.messages.OnNodeDeathResponse;
 
 import lombok.Getter;
 
@@ -18,7 +21,6 @@ public class Bucket {
 
 	private final Node localNode;
 
-
 	public Bucket(Node localNode, int distance) {
 		this.localNode = localNode;
 		this.distance = distance;
@@ -29,8 +31,10 @@ public class Bucket {
 	}
 
 	private synchronized void insert(Connection connection) {
-		// this will maintain list sorted in order of most recently contacted node at the end
-		// keeping ones that live long, and ingnoring newcomers, since statistically it is better.
+		// this will maintain list sorted in order of most recently contacted
+		// node at the end
+		// keeping ones that live long, and ingnoring newcomers, since
+		// statistically it is better.
 		this.connections.remove(connection);
 		if (this.connections.size() < Settings.BucketSize) {
 			this.connections.add(connection);
@@ -48,6 +52,11 @@ public class Bucket {
 
 	public synchronized void remove(Connection connection) {
 		this.connections.remove(connection);
+		this.localNode.sendMessage(Settings.bootstrapNode, Messages.OnNodeDeath,
+				new OnNodeDeathRequest(this.localNode.getInfo(), connection.getNode()), (response) -> {
+					// shoot and forget
+				}, (e) -> {
+				}, OnNodeDeathResponse.class);
 	}
 
 	public synchronized void onNodeFailed(final NodeInfo info) {

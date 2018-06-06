@@ -409,7 +409,6 @@ private Label streamingFrom;
 		searchButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
 			@Override
 			public void handle(MouseEvent e) {
-				log.debug("SEARCH CLICKED.");
 				VideoStreamingGui.this.node.search(searchInput.getText(), (results) -> {
 					log.debug("Results in search: {}", results);
 					Platform.runLater(() -> {
