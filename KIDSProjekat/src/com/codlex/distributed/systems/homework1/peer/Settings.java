@@ -17,7 +17,7 @@ public class Settings {
 	public static long RefreshIntervalSeconds = 20;
 
 	// failure settings
-	public static final long SoftTimeoutMillis = 1000;
+	public static final long SoftTimeoutMillis = 500;
 	public static final long HardTimeoutMillis = 5000;
 	// because my upload is single request, it will have long timeout time
 	public static final long VideoUploadTimeoutMillis = TimeUnit.MINUTES.toMillis(2);

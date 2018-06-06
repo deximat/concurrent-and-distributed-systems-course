@@ -53,15 +53,19 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.impl.ConcurrentHashSet;
+import io.vertx.core.parsetools.RecordParser;
+import io.vertx.core.streams.Pump;
+import io.vertx.core.streams.ReadStream;
 import io.vertx.ext.web.Router;
 import javafx.application.Platform;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import lombok.Getter;
@@ -118,6 +122,14 @@ public class Node {
 		createFolderForVideos();
 	}
 
+	private HttpClient createClient() {
+		VertxOptions options = new VertxOptions();
+		options.setEventLoopPoolSize(16);
+		options.setWorkerPoolSize(16);
+		Vertx vertx = Vertx.vertx(options);
+		return vertx.createHttpClient();
+	}
+
 	public void onBootstrapFinished() {
 		SCHEDULER.scheduleWithFixedDelay(this::refresh, 0, Settings.RefreshIntervalSeconds, TimeUnit.SECONDS);
 	}
@@ -128,20 +140,23 @@ public class Node {
 		// setTask("SENT " + messageType.getAddress());
 
 		log.trace("{} -> {} says {}", this.info, info, messageType.getAddress());
+
+		Buffer buffer = Buffer.factory.buffer(GsonProvider.get().toJson(message));
 		this.client.post(info.port, info.address, messageType.getAddress(), (response) -> {
 			response.bodyHandler((body) -> {
-
 				log.trace("{} <- {} says {}", this.info, info, messageType.getAddress());
 				this.routingTable.insert(info);
 				callback.accept(GsonProvider.get().fromJson(body.toString(), responseClass));
 				// setTask("CONNECTED IDLE");
-
 			});
 		}).setTimeout(messageType.getTimeout(message)).exceptionHandler((e) -> {
 			this.routingTable.onNodeFailed(info);
 			log.error("{} had problem with posting the request {} to {}: {}", this, messageType.getAddress(), info, e.getMessage());
 			onError.accept(e);
-		}).end(GsonProvider.get().toJson(message));
+		}).setChunked(true).end(buffer);
+
+
+
 	}
 
 	private void setTask(String task) {
@@ -150,12 +165,15 @@ public class Node {
 		});
 	}
 
-	private HttpClient createClient() {
-		return Vertx.vertx().createHttpClient();
-	}
 
 	private HttpServer createServer() {
-		final Router router = Router.router(Vertx.vertx());
+		VertxOptions options = new VertxOptions();
+		options.setEventLoopPoolSize(16);
+		options.setWorkerPoolSize(16);
+		Vertx vertx = Vertx.vertx(options);
+
+
+		final Router router = Router.router(vertx);
 		router.route().handler(io.vertx.ext.web.handler.BodyHandler.create());
 		router.route(HttpMethod.POST, Messages.Connect.getAddress())
 				.handler(new JsonHandler<ConnectMessageRequest, ConnectMessageResponse>(ConnectMessageRequest.class) {
@@ -230,7 +248,7 @@ public class Node {
 			log.error("", e);
 		});
 
-		HttpServer server = Vertx.vertx().createHttpServer();
+		HttpServer server = vertx.createHttpServer();
 		server.requestHandler(router::accept);
 		server.listen(this.info.port);
 		System.out.println("Started server listening on: " + this.info);
