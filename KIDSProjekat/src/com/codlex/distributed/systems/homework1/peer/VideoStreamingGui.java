@@ -62,6 +62,7 @@ public class VideoStreamingGui {
 
 	private MediaView mediaView;
 	private Label videoLabel;
+private Label streamingFrom;
 
 	public VideoStreamingGui(Node node) {
 		this.node = node;
@@ -101,10 +102,11 @@ public class VideoStreamingGui {
 		videoPlayer.setPrefWidth(500);
 
 		this.videoLabel = new Label("No video loaded");
-
 		this.videoLabel.setFont(Font.font(30));
 
 		videoPlayer.getChildren().add(this.videoLabel);
+		this.streamingFrom = new Label();
+		videoPlayer.getChildren().add(streamingFrom);
 
 		this.mediaView = new MediaView();
         this.mediaView.setFitHeight(200);
@@ -315,13 +317,13 @@ public class VideoStreamingGui {
 
 
 	protected void startStreaming(String videoName) {
-		log.debug("Started streaming {}", videoName);
+		log.debug("{} started streaming {}", this.node, videoName);
 
 		KademliaId videoId = new KademliaId(IdType.Video, this.node.getRegion(), videoName);
 		new GetValueOperation(this.node, videoId, false, (targetNode, value) -> {
 			this.node.onStartedStreaming(targetNode, videoId);
 			Platform.runLater(() -> {
-				log.debug("Target node:" + targetNode);
+				this.streamingFrom.textProperty().set("Streaming from: " + targetNode);
 				String URI = String.format("http://%s:%d/%s", targetNode.address, targetNode.streamingPort, URLEncoder.encode(videoId.toHex()));
 
 				Media media = new Media(URI);
