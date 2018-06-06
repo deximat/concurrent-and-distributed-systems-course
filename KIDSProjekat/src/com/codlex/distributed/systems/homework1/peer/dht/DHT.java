@@ -3,12 +3,15 @@ package com.codlex.distributed.systems.homework1.peer.dht;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.Node;
@@ -46,16 +49,7 @@ public class DHT {
 
 	private final Node localNode;
 
-	@Getter
-	private final ObservableMap<KademliaId, DHTEntry> table = FXCollections
-			.synchronizedObservableMap(FXCollections.observableMap(new HashMap<>()));
-
-	public void store(DHTEntry value) {
-		new StoreOperation(this.localNode, value, (nodesStoredOn) -> {
-		}).store();
-	}
-
-
+	private final Map<KademliaId, DHTEntry> table = new HashMap<>();
 
 	public synchronized DHTEntry get(KademliaId key) {
 		DHTEntry result = this.table.get(key);
@@ -75,7 +69,7 @@ public class DHT {
 	}
 
 	public synchronized void refresh() {
-		new RefreshOperation(this.localNode, this.table.values(), this::remove, () -> {
+		new RefreshOperation(this.localNode, getTableAsList(), this::remove, () -> {
 			log.debug("Refresh done!");
 		}).execute();
 	}
@@ -104,5 +98,23 @@ public class DHT {
 		default:
 			throw new RuntimeException("Not implemented yet.");
 		}
+	}
+
+	public synchronized void onVideoStreamingStarted(KademliaId id) {
+		Video video = (Video) get(id);
+		video.incrementViews();
+		log.debug("Viewing video: {}", video);
+	}
+
+	public synchronized File getVideoForStreaming(KademliaId id) {
+		Video video = (Video) get(id);
+		return video.getFile();
+	}
+
+	public synchronized List<DHTEntry> getTableAsList() {
+		List<DHTEntry> entries = new ArrayList<>(this.table.values());
+		Collections.sort(entries);
+		log.debug("Size: " + entries.size());
+		return entries;
 	}
 }

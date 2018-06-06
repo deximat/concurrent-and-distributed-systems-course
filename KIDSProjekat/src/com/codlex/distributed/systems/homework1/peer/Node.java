@@ -43,8 +43,11 @@ import com.codlex.distributed.systems.homework1.peer.messages.Messages;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest.ValueContainer;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueResponse;
+import com.codlex.distributed.systems.homework1.peer.messages.StreamingStartedRequest;
+import com.codlex.distributed.systems.homework1.peer.messages.StreamingStartedResponse;
 import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
 import com.codlex.distributed.systems.homework1.peer.operations.NodeLookup;
+import com.codlex.distributed.systems.homework1.peer.operations.StoreOperation;
 import com.codlex.distributed.systems.homework1.peer.routing.RoutingTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -69,7 +72,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@ToString(of={"info"}, includeFieldNames = false)
+@ToString(of = { "info" }, includeFieldNames = false)
 public class Node {
 
 	@Getter
@@ -110,10 +113,10 @@ public class Node {
 		this.streamingPort = streamingPort;
 	}
 
-
 	public void init() {
 		this.inited.set(true);
-		this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), HostGetter.getUnsafe(), this.port, this.streamingPort);
+		this.info = new NodeInfo(new KademliaId(IdType.Node, this.region), HostGetter.getUnsafe(), this.port,
+				this.streamingPort);
 		this.server = createServer();
 		this.client = createClient();
 		this.routingTable = new RoutingTable(this.info);
@@ -126,7 +129,8 @@ public class Node {
 	}
 
 	public <Response extends Serializable> void sendMessage(final NodeInfo info, Messages messageType,
-			Serializable message, Consumer<Response> callback, Consumer<Throwable> onError, Class<Response> responseClass) {
+			Serializable message, Consumer<Response> callback, Consumer<Throwable> onError,
+			Class<Response> responseClass) {
 		// setTask("SENT " + messageType.getAddress());
 
 		log.trace("{} -> {} says {}", this.info, info, messageType.getAddress());
@@ -139,12 +143,10 @@ public class Node {
 				// setTask("CONNECTED IDLE");
 
 			});
-		}).setTimeout(5000)
-		.exceptionHandler( (e) -> {
+		}).setTimeout(5000).exceptionHandler((e) -> {
 			log.error("Problem with posting the request", e);
 			onError.accept(e);
-		} )
-		.end(GsonProvider.get().toJson(message));
+		}).end(GsonProvider.get().toJson(message));
 	}
 
 	private void setTask(String task) {
@@ -206,6 +208,15 @@ public class Node {
 					}
 				});
 
+		router.route(HttpMethod.POST, Messages.StreamingStarted.getAddress()).handler(
+				new JsonHandler<StreamingStartedRequest, StreamingStartedResponse>(StreamingStartedRequest.class) {
+					public StreamingStartedResponse callback(StreamingStartedRequest message) {
+						Node.this.routingTable.insert(message.getNode());
+						Node.this.dht.onVideoStreamingStarted(message.getId());
+						return new StreamingStartedResponse();
+					}
+				});
+
 		router.exceptionHandler((e) -> {
 			log.error("", e);
 		});
@@ -224,7 +235,9 @@ public class Node {
 			log.debug("{} contacting bootstrap server.", this.info);
 			sendMessage(Settings.bootstrapNode, Messages.Join, new JoinRequest(this.info), (response) -> {
 				bootstrap(response.getBootstrapNode());
-			}, (e) -> { System.exit(0); },  JoinResponse.class);
+			}, (e) -> {
+				System.exit(0);
+			}, JoinResponse.class);
 			callback.run();
 		}, 0, TimeUnit.MILLISECONDS);
 	}
@@ -251,7 +264,9 @@ public class Node {
 					onBootstrapFinished();
 				});
 			}).execute();
-		},  (e) -> { System.exit(0);}, ConnectMessageResponse.class);
+		}, (e) -> {
+			System.exit(0);
+		}, ConnectMessageResponse.class);
 	}
 
 	private void refresh() {
@@ -270,7 +285,8 @@ public class Node {
 
 			new NodeLookup(this, current, (nodes) -> {
 				if (expectedExecutes.decrementAndGet() == 0) {
-					log.debug("{} finished refreshing buckets in {}ms.", this.info, System.currentTimeMillis() - startTime);
+					log.debug("{} finished refreshing buckets in {}ms.", this.info,
+							System.currentTimeMillis() - startTime);
 					callback.run();
 				}
 			}).execute();
@@ -287,7 +303,6 @@ public class Node {
 		// than are the
 		// IDs of other nodes.
 	}
-
 
 	public void setRegion(Region region) {
 		this.region = region;
@@ -341,6 +356,11 @@ public class Node {
 		}
 	}
 
+	public void store(DHTEntry value) {
+		new StoreOperation(this, value, (nodesStoredOn) -> {
+		}).store();
+	}
+
 	public void uploadVideo(String name, String filePath, Consumer<Object> callback) {
 		SCHEDULER.schedule(() -> {
 
@@ -355,30 +375,22 @@ public class Node {
 			for (Region region : Region.realValues()) {
 				KademliaId videoId = new KademliaId(IdType.Video, region, name);
 				Video video = new Video(videoId, bytes);
-				dht.store(video);
+				store(video);
 
 				for (String keyword : name.split(" ")) {
 					Keyword keywordObject = new Keyword(new KademliaId(IdType.Keyword, region, keyword.trim()),
 							ImmutableSet.of(name));
-					dht.store(keywordObject);
+					store(keywordObject);
 				}
 
 				callback.accept("DONE");
 			}
 
-		},  0, TimeUnit.MILLISECONDS);
+		}, 0, TimeUnit.MILLISECONDS);
 	}
 
 	public File getVideoForStreaming(final KademliaId id) {
-		Video video = (Video) this.dht.get(id);
-		video.incrementViews();
-
-		Platform.runLater(() -> {
-			log.debug("Incremending number of streamers.");
-			this.currentStreamers.add(1);
-		});
-
-		return video.getFile();
+		return this.dht.getVideoForStreaming(id);
 	}
 
 	public void onVideoStreamingEnd() {
@@ -390,5 +402,11 @@ public class Node {
 
 	public String getVideoDirectory() {
 		return this.videoDirectory;
+	}
+
+	public void onStartedStreaming(final NodeInfo node, final KademliaId videoId) {
+		sendMessage(node, Messages.StreamingStarted, new StreamingStartedRequest(node, videoId), (e) -> {
+		}, (e) -> {
+		}, StreamingStartedRequest.class);
 	}
 }

@@ -5,11 +5,13 @@ import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Objects;
 
 import org.apache.commons.lang.RandomStringUtils;
 
 import com.codlex.distributed.systems.homework1.peer.Region;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
+import com.google.common.base.Strings;
 
 import lombok.EqualsAndHashCode;
 import lombok.val;

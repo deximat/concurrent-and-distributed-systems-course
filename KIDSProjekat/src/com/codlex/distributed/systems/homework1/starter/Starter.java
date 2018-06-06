@@ -39,17 +39,6 @@ public class Starter {
 			Integer streamingPort = 8000 + i * 2;
 			processes.add(JavaProcess.exec(VideoStreamingGui.class, port.toString(), streamingPort.toString()));
 		}
-
-		Scanner in = new Scanner(System.in);
-		while (true) {
-			String command = in.nextLine();
-			if (command.equals("kill")) {
-				for (Process process : processes) {
-					process.destroy();
-				}
-				System.exit(0);
-			}
-		}
 	}
 
 }

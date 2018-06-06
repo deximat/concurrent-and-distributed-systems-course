@@ -11,6 +11,8 @@ import com.codlex.distributed.systems.homework1.bootstrap.BootstrapNode;
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
+import com.codlex.distributed.systems.homework1.peer.dht.content.Keyword;
+import com.codlex.distributed.systems.homework1.peer.dht.content.Video;
 import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
 import com.codlex.distributed.systems.homework1.starter.Log4jConfigurator;
 
@@ -120,59 +122,86 @@ public class VideoStreamingGui {
 
 
 	private javafx.scene.Node buildDHTContent() {
-		ObservableList<DHTEntry> listOfItems = FXCollections.observableArrayList();
-
-		this.node.getDht().getTable().addListener(new MapChangeListener<KademliaId, DHTEntry>() {
-			@Override
-			public void onChanged(
-					javafx.collections.MapChangeListener.Change<? extends KademliaId, ? extends DHTEntry> change) {
-
-				listOfItems.removeIf((key) -> {
-					return key.getId().equals(change.getKey());
-				});
-
-				if (change.getValueAdded() != null) {
-					listOfItems.add((DHTEntry) change.getValueAdded());
-				}
-			}
-		});
+		ObservableList<DHTEntry> listOfItems = FXCollections.synchronizedObservableList(FXCollections.observableArrayList());
+		this.node.SCHEDULER.scheduleAtFixedRate(() -> {
+			Platform.runLater(() -> {
+				listOfItems.setAll(this.node.getDht().getTableAsList());
+			});
+		}, 0, 1, TimeUnit.SECONDS);
 
 		TableView<DHTEntry> table = new TableView<>(listOfItems);
 
-		TableColumn<DHTEntry, String> column1 = new TableColumn<>("Key");
+		TableColumn<DHTEntry, String> column1 = new TableColumn<>("Region");
 		column1.setCellValueFactory(
 				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
 					@Override
 					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
-						return new SimpleStringProperty(p.getValue().getId().toString());
+						return new SimpleStringProperty(p.getValue().getId().getRegion().toString());
 					}
 				});
 
-		TableColumn<DHTEntry, String> column2 = new TableColumn<>("Distance");
+		TableColumn<DHTEntry, String> column2 = new TableColumn<>("Type");
 		column2.setCellValueFactory(
 				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
 					@Override
 					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
-
-						return new SimpleStringProperty(Integer.toString(
-								p.getValue().getId().getDistance(VideoStreamingGui.this.node.getInfo().getId())));
+						return new SimpleStringProperty(p.getValue().getId().getType().toString());
 					}
 				});
 
-		TableColumn<DHTEntry, String> column3 = new TableColumn<>("Value");
+//		TableColumn<DHTEntry, String> column2 = new TableColumn<>("Distance");
+//		column2.setCellValueFactory(
+//				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+//					@Override
+//					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
+//
+//						return new SimpleStringProperty(Integer.toString(
+//								p.getValue().getId().getDistance(VideoStreamingGui.this.node.getInfo().getId())));
+//					}
+//				});
+
+		TableColumn<DHTEntry, String> column3 = new TableColumn<>("Name");
 		column3.setCellValueFactory(
 				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
 					@Override
 					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
 						// for second column we use value
-						return new SimpleStringProperty(p.getValue().toString());
+						return new SimpleStringProperty(p.getValue().getId().getData());
+					}
+				});
+
+		TableColumn<DHTEntry, String> column4 = new TableColumn<>("Videos");
+		column4.setCellValueFactory(
+				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+					@Override
+					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
+
+						if (p.getValue() instanceof Keyword) {
+							return new SimpleStringProperty(((Keyword) p.getValue()).getVideos() + "");
+						} else {
+							return new SimpleStringProperty("");
+						}
+					}
+				});
+
+		TableColumn<DHTEntry, String> column5 = new TableColumn<>("Views");
+		column5.setCellValueFactory(
+				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+					@Override
+					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
+						// for second column we use value
+						if (p.getValue() instanceof Video) {
+							return new SimpleStringProperty(((Video) p.getValue()).getViewCount() + "");
+						} else {
+							return new SimpleStringProperty("");
+						}
 					}
 				});
 
 		TableColumn<String, String> column = new TableColumn<>();
 		column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
 
-		table.getColumns().addAll(column1, column2, column3);
+		table.getColumns().addAll(column1, column2, column3, column4, column5);
 		table.setPrefHeight(250);
 
 		return table;
@@ -270,7 +299,8 @@ public class VideoStreamingGui {
 		log.debug("Started streaming {}", videoName);
 
 		KademliaId videoId = new KademliaId(IdType.Video, this.node.getRegion(), videoName);
-		new GetValueOperation(node, videoId, false, (targetNode, value) -> {
+		new GetValueOperation(this.node, videoId, false, (targetNode, value) -> {
+			this.node.onStartedStreaming(targetNode, videoId);
 			Platform.runLater(() -> {
 				log.debug("Target node:" + targetNode);
 				String URI = String.format("http://%s:%d/%s", targetNode.address, targetNode.streamingPort, URLEncoder.encode(videoId.toHex()));
