@@ -14,6 +14,7 @@ import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 import com.codlex.distributed.systems.homework1.peer.dht.content.Keyword;
 import com.codlex.distributed.systems.homework1.peer.dht.content.Video;
 import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
+import com.codlex.distributed.systems.homework1.peer.operations.NodeLookup;
 import com.codlex.distributed.systems.homework1.starter.Log4jConfigurator;
 
 import javafx.application.Platform;
@@ -198,10 +199,24 @@ public class VideoStreamingGui {
 					}
 				});
 
+		TableColumn<DHTEntry, String> column6 = new TableColumn<>("Redundancy");
+		column6.setCellValueFactory(
+				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
+					@Override
+					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
+						// for second column we use value
+						if (p.getValue() instanceof Video) {
+							return new SimpleStringProperty(((Video) p.getValue()).getDynamicRedundancy() + "");
+						} else {
+							return new SimpleStringProperty("");
+						}
+					}
+				});
+
 		TableColumn<String, String> column = new TableColumn<>();
 		column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
 
-		table.getColumns().addAll(column1, column2, column3, column4, column5);
+		table.getColumns().addAll(column1, column2, column3, column4, column5, column6);
 		table.setPrefHeight(250);
 
 		return table;
@@ -212,14 +227,14 @@ public class VideoStreamingGui {
 		pane.setPrefHeight(250);
 		this.node.SCHEDULER.scheduleAtFixedRate(() -> {
 			Platform.runLater(() -> {
-				if (!this.node.getInited().get()) {
-					return;
-				}
-				Label text = new Label();
+			if (!this.node.getInited().get()) {
+				return;
+			}
+					Label text = new Label();
 				text.setText(this.node.getRoutingTable().toString());
-				text.setPrefWidth(500);
-				pane.setContent(text);
-			});
+					text.setPrefWidth(500);
+					pane.setContent(text);
+				});
 		}, 0, Settings.REFRESH_BUCKETS_VIEW, TimeUnit.SECONDS);
 		return pane;
 	}

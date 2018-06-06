@@ -1,7 +1,6 @@
 package com.codlex.distributed.systems.homework1.peer.operations;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import com.codlex.distributed.systems.homework1.peer.Node;
@@ -10,9 +9,12 @@ import com.codlex.distributed.systems.homework1.peer.Settings;
 import com.codlex.distributed.systems.homework1.peer.dht.content.DHTEntry;
 import com.codlex.distributed.systems.homework1.peer.messages.Messages;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest;
-import com.codlex.distributed.systems.homework1.peer.messages.StoreValueResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest.ValueContainer;
 
+import lombok.extern.slf4j.Slf4j;
+
+import com.codlex.distributed.systems.homework1.peer.messages.StoreValueResponse;
+@Slf4j
 public class StoreOperation {
 
 	private Node localNode;
@@ -30,11 +32,12 @@ public class StoreOperation {
 	}
 
 	public void store() {
-		new NodeLookup(this.localNode, value.getId(), this::onNodesObtained).execute();
+		new NodeLookup(this.localNode, value.getId(), this.value.getDynamicRedundancy(), this::onNodesObtained).execute();
 	}
 
 
 	private synchronized void onNodesObtained(List<NodeInfo> closestNodes) {
+		log.debug("Obtained nodes: {}, for {}", closestNodes.size(), this.value);
 		this.closestNodes = closestNodes;
 		this.nextNodeToStore = 0;
 		checkIfFinishedAndStoreIfNot();

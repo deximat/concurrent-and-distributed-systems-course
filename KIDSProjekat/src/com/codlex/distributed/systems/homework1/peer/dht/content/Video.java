@@ -104,4 +104,13 @@ public class Video extends DHTEntry {
 	public int getViewCount() {
 		return this.views.size();
 	}
+
+	protected int calculateDesiredRedundancy() {
+		int viewCount = getViewCount();
+		if (viewCount < Settings.ViewsToStartDynamicRedundancy) {
+			return 0;
+		}
+
+		return viewCount / Settings.LinearDinamicRedundancyFactorPerView;
+	}
 }

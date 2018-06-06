@@ -114,7 +114,6 @@ public class DHT {
 	public synchronized List<DHTEntry> getTableAsList() {
 		List<DHTEntry> entries = new ArrayList<>(this.table.values());
 		Collections.sort(entries);
-		log.debug("Size: " + entries.size());
 		return entries;
 	}
 }

@@ -43,13 +43,13 @@ public class NodeLookup {
 	private static final ScheduledExecutorService SCHEDULER = (ScheduledExecutorService) Executors
 			.newSingleThreadScheduledExecutor();
 
-	public NodeLookup(Node localNode, KademliaId lookupId, Consumer<List<NodeInfo>> callback) {
+	public NodeLookup(Node localNode, KademliaId lookupId, int k, Consumer<List<NodeInfo>> callback) {
 		this.localNode = localNode;
 		this.lookupId = lookupId;
 		this.callback = callback;
 		this.statuses = new TreeMap<>(new KeyComparator(this.lookupId));
-		this.k = Settings.K;
-		this.request = new FindNodesRequest(this.localNode.getInfo(), this.lookupId);
+		this.k = k;
+		this.request = new FindNodesRequest(this.localNode.getInfo(), this.lookupId, this.k);
 	}
 
 	private synchronized void processTimeout() {

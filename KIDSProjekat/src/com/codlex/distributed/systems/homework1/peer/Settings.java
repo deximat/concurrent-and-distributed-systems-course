@@ -6,10 +6,17 @@ import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 
 public class Settings {
+
+	// redundancy settings
+	public static final int K = 3; // this is needed to guarantee uptime (two nodes can go down at a time)
+	public static final int ViewsToStartDynamicRedundancy = 10;
+	public static final int LinearDinamicRedundancyFactorPerView = 5; // 5 meaning if we have 10 views, we should have 2 copies
+
+
+
 	// number of concurrent requests allowed
 	public static final int ConcurrencyParam = 3;
 
-	public static final int K = 3;
 	public static final int BucketSize = 2;
 	public static final long REFRESH_BUCKETS_VIEW = 10;
 

@@ -10,10 +10,13 @@ import lombok.Getter;
 
 @AllArgsConstructor
 public class FindNodesRequest implements Serializable {
-	
+
 	@Getter
 	private final NodeInfo node;
 
 	@Getter
 	private final KademliaId lookupId;
+
+	@Getter
+	private final int count;
 }

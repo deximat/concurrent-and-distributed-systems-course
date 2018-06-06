@@ -3,8 +3,6 @@ package com.codlex.distributed.systems.homework1.peer;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -16,7 +14,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -52,14 +49,11 @@ import com.codlex.distributed.systems.homework1.peer.routing.RoutingTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
-import com.google.gson.Gson;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.RequestOptions;
 import io.vertx.core.impl.ConcurrentHashSet;
 import io.vertx.ext.web.Router;
 import javafx.application.Platform;
@@ -177,7 +171,7 @@ public class Node {
 					public FindNodesResponse callback(FindNodesRequest message) {
 						Node.this.routingTable.insert(message.getNode());
 						return new FindNodesResponse(
-								Node.this.routingTable.findClosest(message.getLookupId(), Settings.K));
+								Node.this.routingTable.findClosest(message.getLookupId(), message.getCount()));
 					}
 				});
 
@@ -257,7 +251,7 @@ public class Node {
 			this.routingTable.insert(node);
 
 			// self lookup
-			new NodeLookup(this, this.info.getId(), (nodes) -> {
+			new NodeLookup(this, this.info.getId(), Settings.K, (nodes) -> {
 				refreshBuckets(() -> {
 					log.debug("## Bootstraping of {} finished ", this.info);
 					this.task.set("CONNECTED IDLE");
@@ -283,7 +277,7 @@ public class Node {
 		for (int i = 1; i < KademliaId.ID_LENGTH_BITS; i++) {
 			final KademliaId current = this.info.getId().generateNodeIdByDistance(i);
 
-			new NodeLookup(this, current, (nodes) -> {
+			new NodeLookup(this, current, Settings.K, (nodes) -> {
 				if (expectedExecutes.decrementAndGet() == 0) {
 					log.debug("{} finished refreshing buckets in {}ms.", this.info,
 							System.currentTimeMillis() - startTime);
