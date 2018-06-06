@@ -345,6 +345,7 @@ public class Node {
 
 			// we need to make instance per region
 			for (Region region : Region.realValues()) {
+
 				KademliaId videoId = new KademliaId(IdType.Video, region, name);
 				Video video = new Video(videoId, bytes);
 				new StoreOperation(this, video, (nodesStoredOn) -> {
@@ -357,6 +358,9 @@ public class Node {
 					store(keywordObject);
 				}
 
+				// store to all
+				Keyword all = new Keyword(new KademliaId(IdType.Keyword, region, Settings.AllKeyword), ImmutableSet.of(name));
+				store(all);
 			}
 
 		}, 0, TimeUnit.MILLISECONDS);
@@ -374,5 +378,15 @@ public class Node {
 		sendMessage(node, Messages.StreamingStarted, new StreamingStartedRequest(node, videoId), (e) -> {
 		}, (e) -> {
 		}, StreamingStartedRequest.class);
+	}
+
+	public void getAll(Consumer<List<String>> callback) {
+		KademliaId key = new KademliaId(IdType.Keyword, this.region, Settings.AllKeyword);
+		findValue(key, false, (node, keywordObject) -> {
+			Keyword keyword = (Keyword) keywordObject;
+			List<String> videos = new ArrayList<>(keyword.getVideos());
+			Collections.sort(videos);
+			callback.accept(videos);
+		});
 	}
 }

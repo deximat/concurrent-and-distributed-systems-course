@@ -33,4 +33,6 @@ public class Settings {
 	// GUI settings
 	public static final long RefreshBucketsViewSeconds = 10;
 
+	// special all keywrod
+	public static final String AllKeyword = "*X___A-L-L___X*";
 }

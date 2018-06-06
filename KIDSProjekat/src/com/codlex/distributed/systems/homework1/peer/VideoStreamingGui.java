@@ -405,7 +405,6 @@ private Label streamingFrom;
 
 		Button searchButton = new Button("Search");
 		searchButton.setPrefWidth(100);
-
 		searchButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
 			@Override
 			public void handle(MouseEvent e) {
@@ -419,6 +418,21 @@ private Label streamingFrom;
 			}
 		});
 		searchBar.getChildren().add(searchButton);
+
+		Button allButton = new Button("AllVideos");
+		allButton.setPrefWidth(100);
+		allButton.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+			@Override
+			public void handle(MouseEvent e) {
+				VideoStreamingGui.this.node.getAll((allVideos) -> {
+					Platform.runLater(() -> {
+						VideoStreamingGui.this.searchResults.clear();
+						VideoStreamingGui.this.searchResults.addAll(allVideos);
+					});
+				});
+			}
+		});
+		searchBar.getChildren().add(allButton);
 
 		return searchBar;
 	}
