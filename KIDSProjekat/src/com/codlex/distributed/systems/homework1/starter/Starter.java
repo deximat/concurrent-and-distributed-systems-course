@@ -11,7 +11,7 @@ import com.codlex.distributed.systems.homework1.peer.VideoStreamingGui;
 
 public class Starter {
 
-	private static final int NUMBER_OF_GUIS = 4;
+	private static final int NUMBER_OF_GUIS = 6;
 
 	private static final List<Process> processes = new ArrayList<>();
 

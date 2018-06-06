@@ -37,6 +37,8 @@ import com.codlex.distributed.systems.homework1.peer.messages.FindNodesResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.GetValueRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.GetValueResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.Messages;
+import com.codlex.distributed.systems.homework1.peer.messages.PingRequest;
+import com.codlex.distributed.systems.homework1.peer.messages.PingResponse;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueRequest.ValueContainer;
 import com.codlex.distributed.systems.homework1.peer.messages.StoreValueResponse;
@@ -44,6 +46,7 @@ import com.codlex.distributed.systems.homework1.peer.messages.StreamingStartedRe
 import com.codlex.distributed.systems.homework1.peer.messages.StreamingStartedResponse;
 import com.codlex.distributed.systems.homework1.peer.operations.GetValueOperation;
 import com.codlex.distributed.systems.homework1.peer.operations.NodeLookup;
+import com.codlex.distributed.systems.homework1.peer.operations.RefreshBucketOperation;
 import com.codlex.distributed.systems.homework1.peer.operations.StoreOperation;
 import com.codlex.distributed.systems.homework1.peer.routing.RoutingTable;
 import com.google.common.collect.ImmutableList;
@@ -113,13 +116,13 @@ public class Node {
 				this.streamingPort);
 		this.server = createServer();
 		this.client = createClient();
-		this.routingTable = new RoutingTable(this.info);
+		this.routingTable = new RoutingTable(this);
 		this.streamingServer = new StreamingServer(this, streamingPort);
 		createFolderForVideos();
 	}
 
 	public void onBootstrapFinished() {
-		SCHEDULER.scheduleWithFixedDelay(this::refresh, 0, Settings.REFRESH_INTERVAL_SECONDS, TimeUnit.SECONDS);
+		SCHEDULER.scheduleWithFixedDelay(this::refresh, 0, Settings.RefreshIntervalSeconds, TimeUnit.SECONDS);
 	}
 
 	public <Response extends Serializable> void sendMessage(final NodeInfo info, Messages messageType,
@@ -137,8 +140,9 @@ public class Node {
 				// setTask("CONNECTED IDLE");
 
 			});
-		}).setTimeout(5000).exceptionHandler((e) -> {
-			log.error("Problem with posting the request", e);
+		}).setTimeout(Settings.SoftTimeoutMillis).exceptionHandler((e) -> {
+			this.routingTable.onNodeFailed(info);
+			log.error("Problem with posting the request {} to {}: {}", messageType.getAddress(), info, e.getMessage());
 			onError.accept(e);
 		}).end(GsonProvider.get().toJson(message));
 	}
@@ -211,6 +215,14 @@ public class Node {
 					}
 				});
 
+		router.route(HttpMethod.POST, Messages.Ping.getAddress()).handler(
+				new JsonHandler<PingRequest, PingResponse>(PingRequest.class) {
+					public PingResponse callback(PingRequest message) {
+						Node.this.routingTable.insert(message.getNode());
+						return new PingResponse();
+					}
+				});
+
 		router.exceptionHandler((e) -> {
 			log.error("", e);
 		});
@@ -252,7 +264,7 @@ public class Node {
 
 			// self lookup
 			new NodeLookup(this, this.info.getId(), Settings.K, (nodes) -> {
-				refreshBuckets(() -> {
+				new RefreshBucketOperation(this, () -> {
 					log.debug("## Bootstraping of {} finished ", this.info);
 					this.task.set("CONNECTED IDLE");
 					onBootstrapFinished();
@@ -264,38 +276,9 @@ public class Node {
 	}
 
 	private void refresh() {
-		refreshBuckets(() -> {
+		new RefreshBucketOperation(this, () -> {
 			this.dht.refresh();
-		});
-	}
-
-	private void refreshBuckets(Runnable callback) {
-		log.debug("{} started refreshing buckets", this.info);
-		long startTime = System.currentTimeMillis();
-
-		AtomicInteger expectedExecutes = new AtomicInteger(KademliaId.ID_LENGTH_BITS);
-		for (int i = 1; i < KademliaId.ID_LENGTH_BITS; i++) {
-			final KademliaId current = this.info.getId().generateNodeIdByDistance(i);
-
-			new NodeLookup(this, current, Settings.K, (nodes) -> {
-				if (expectedExecutes.decrementAndGet() == 0) {
-					log.debug("{} finished refreshing buckets in {}ms.", this.info,
-							System.currentTimeMillis() - startTime);
-					callback.run();
-				}
-			}).execute();
-		}
-
-		if (expectedExecutes.decrementAndGet() == 0) {
-			log.debug("{} finished refreshing buckets in {}ms.", this.info, System.currentTimeMillis() - startTime);
-			callback.run();
-		}
-
-		// OPTIMIZATION: To avoid redundant store RPCs for the same content from
-		// different nodes,
-		// a node only transfers a KV pair if its own ID is closer to the key
-		// than are the
-		// IDs of other nodes.
+		}).execute();
 	}
 
 	public void setRegion(Region region) {

@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -88,12 +89,12 @@ public class DHT {
 			Video video = value.getVideoValue();
 			Video oldVideo = (Video) this.table.get(video.getId());
 			Video toStoreVideo = Video.merge(video, oldVideo);
-			if (oldVideo != null) {
-				oldVideo.delete();
-			}
 			this.table.remove(toStoreVideo.getId());
 			this.table.put(toStoreVideo.getId(), toStoreVideo);
-			toStoreVideo.save(this.localNode.getVideoDirectory());
+			this.localNode.SCHEDULER.schedule(() -> {
+				// offload to background thread
+				toStoreVideo.save(this.localNode.getVideoDirectory());
+			}, 0, TimeUnit.MILLISECONDS);
 			break;
 		default:
 			throw new RuntimeException("Not implemented yet.");

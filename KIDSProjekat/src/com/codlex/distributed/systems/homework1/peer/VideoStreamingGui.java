@@ -79,6 +79,10 @@ public class VideoStreamingGui {
 			everything.getChildren().add(buildConnectBar());
 			everything.getChildren().add(buildMainPanel());
 			this.stage.setScene(new Scene(everything));
+			this.stage.setOnCloseRequest((e) -> {
+				log.debug("{} terminating self.", this.node);
+				System.exit(0);
+			});
 			this.stage.show();
 		});
 	}
@@ -235,7 +239,7 @@ public class VideoStreamingGui {
 					text.setPrefWidth(500);
 					pane.setContent(text);
 				});
-		}, 0, Settings.REFRESH_BUCKETS_VIEW, TimeUnit.SECONDS);
+		}, 0, Settings.RefreshBucketsViewSeconds, TimeUnit.SECONDS);
 		return pane;
 	}
 

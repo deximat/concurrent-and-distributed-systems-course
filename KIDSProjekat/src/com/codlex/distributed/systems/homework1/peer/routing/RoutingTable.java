@@ -6,23 +6,24 @@ import java.util.List;
 
 import com.codlex.distributed.systems.homework1.core.id.KademliaId;
 import com.codlex.distributed.systems.homework1.core.id.KeyComparator;
+import com.codlex.distributed.systems.homework1.peer.Node;
 import com.codlex.distributed.systems.homework1.peer.NodeInfo;
 import com.codlex.distributed.systems.homework1.peer.Settings;
 
 public class RoutingTable {
 
-	private final NodeInfo localNode;
+	private final Node localNode;
 	private final List<Bucket> buckets;
 
-	public RoutingTable(final NodeInfo localNode) {
+	public RoutingTable(final Node localNode) {
 		this.localNode = localNode;
 
 		this.buckets = new ArrayList<Bucket>();
 		for (int i = 0; i <= KademliaId.ID_LENGTH_BITS; i++) {
-			this.buckets.add(new Bucket(i));
+			this.buckets.add(new Bucket(this.localNode, i));
 		}
 
-		insert(localNode);
+		insert(localNode.getInfo());
 	}
 
 	public synchronized final void insert(final NodeInfo node) {
@@ -35,7 +36,7 @@ public class RoutingTable {
 	}
 
 	private int getBucketId(KademliaId nodeId) {
-		return this.localNode.getId().getDistance(nodeId);
+		return this.localNode.getInfo().getId().getDistance(nodeId);
 	}
 
 	public synchronized final List<NodeInfo> findClosest(KademliaId target, int count) {
@@ -48,9 +49,11 @@ public class RoutingTable {
 		final List<NodeInfo> nodes = new ArrayList<>();
 
 		for (final Bucket bucket : this.buckets) {
+
 			for (Connection connection : bucket.getConnections()) {
 				nodes.add(connection.getNode());
 			}
+
 		}
 
 		return nodes;
@@ -65,5 +68,9 @@ public class RoutingTable {
 			builder.append(SEPARATOR);
 		}
 		return builder.toString();
+	}
+
+	public void onNodeFailed(final NodeInfo info) {
+		this.buckets.get(getBucketId(info.getId())).onNodeFailed(info);
 	}
 }
