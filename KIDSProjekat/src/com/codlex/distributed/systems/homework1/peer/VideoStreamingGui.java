@@ -156,17 +156,6 @@ private Label streamingFrom;
 					}
 				});
 
-//		TableColumn<DHTEntry, String> column2 = new TableColumn<>("Distance");
-//		column2.setCellValueFactory(
-//				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
-//					@Override
-//					public ObservableValue<String> call(TableColumn.CellDataFeatures<DHTEntry, String> p) {
-//
-//						return new SimpleStringProperty(Integer.toString(
-//								p.getValue().getId().getDistance(VideoStreamingGui.this.node.getInfo().getId())));
-//					}
-//				});
-
 		TableColumn<DHTEntry, String> column3 = new TableColumn<>("Name");
 		column3.setCellValueFactory(
 				new Callback<TableColumn.CellDataFeatures<DHTEntry, String>, ObservableValue<String>>() {
@@ -356,15 +345,13 @@ private Label streamingFrom;
 			});
 		}
 
-		ButtonCell() {
-		}
-
-
 		@Override
 		protected void updateItem(String record, boolean empty) {
 			super.updateItem(record, empty);
 			if (!empty) {
 				setGraphic(this.cellButton);
+			} else {
+				setGraphic(null);
 			}
 		}
 	}
@@ -375,6 +362,7 @@ private Label streamingFrom;
 		TableView<String> table = new TableView<String>(this.searchResults);
 
 		TableColumn<String, String> column = new TableColumn<>("Video");
+		column.setPrefWidth(400);
 		column.setCellValueFactory((data) -> new SimpleStringProperty(data.getValue()));
 
 		TableColumn<String, String> column2 = new TableColumn<>("DUGME");
