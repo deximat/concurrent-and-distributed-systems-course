@@ -8,7 +8,6 @@ import com.codlex.distributed.systems.homework1.peer.dht.content.IdType;
 public class Settings {
 
 	// Kadelmia params
-
 	public static NodeInfo bootstrapNode = new NodeInfo(new KademliaId(IdType.Node, Region.Europe, "BOOTSRAP"), HostGetter.getUnsafe(), 1337, 1338);
 
 	// number of concurrent requests allowed
@@ -21,7 +20,6 @@ public class Settings {
 	public static final long HardTimeoutMillis = 5000;
 	// because my upload is single request, it will have long timeout time
 	public static final long VideoUploadTimeoutMillis = TimeUnit.MINUTES.toMillis(2);
-
 
 	// redundancy settings
 	public static final int K = 3; // this is needed to guarantee uptime (two nodes can go down at a time)

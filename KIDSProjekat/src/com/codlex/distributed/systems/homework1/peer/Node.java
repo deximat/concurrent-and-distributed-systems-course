@@ -159,9 +159,11 @@ public class Node {
 	}
 
 	private HttpServer createServer() {
+
 		VertxOptions options = new VertxOptions();
 		options.setEventLoopPoolSize(16);
 		options.setWorkerPoolSize(16);
+
 		Vertx vertx = Vertx.vertx(options);
 
 		final Router router = Router.router(vertx);
